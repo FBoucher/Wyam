@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Wyam.Common.Execution;
 using Wyam.Common.Modules;
+using Wyam.Core.Modules.Contents;
 using Wyam.Core.Modules.Control;
 using Wyam.Core.Modules.IO;
 using Wyam.Html;
@@ -24,10 +25,13 @@ namespace Wyam.Docs.Pipelines
 
         private static IModuleList GetModules() => new ModuleList
         {
-            new If(ctx => ctx.Documents[Docs.Api].Any(),
+            new If(
+                ctx => ctx.Documents[Docs.Api].Any(),
                 new Documents(Docs.Api),
+                new Shortcodes(true),
                 new Razor.Razor()
                     .WithLayout("/_ApiLayout.cshtml"),
+                new Shortcodes(false),
                 new Headings(),
                 new HtmlInsert("div#infobar-headings", (doc, ctx) => ctx.GenerateInfobarHeadings(doc)),
                 new WriteFiles())

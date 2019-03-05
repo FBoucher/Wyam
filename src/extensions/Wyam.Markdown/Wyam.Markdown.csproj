@@ -3,6 +3,8 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <Description>Wyam is a simple to use, highly modular, and extremely configurable static content generator. This library provides support for rendering Markdown content.</Description>
     <PackageTags>Wyam Static StaticContent StaticSite Blog BlogEngine Markdown</PackageTags>
+    <RepositoryUrl>https://github.com/Wyamio/Wyam.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\core\Wyam.Common\Wyam.Common.csproj">
@@ -10,6 +12,6 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Markdig" Version="0.10.6" />
+    <PackageReference Include="Markdig" Version="0.15.4" />
   </ItemGroup>
 </Project>

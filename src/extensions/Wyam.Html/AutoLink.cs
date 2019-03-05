@@ -17,6 +17,7 @@ using Wyam.Common.Modules;
 using Wyam.Common.Execution;
 using Wyam.Common.Tracing;
 using Wyam.Common.Util;
+using AngleSharp;
 
 namespace Wyam.Html
 {
@@ -24,11 +25,18 @@ namespace Wyam.Html
     /// Replaces occurrences of specified strings with HTML links.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// This module is smart enough to only look in specified HTML
     /// elements (p by default). You can supply an alternate query selector to
     /// narrow the search scope to different container elements or to those elements that contain
     /// (or don't contain) a CSS class, etc. It also won't generate an HTML link if the replacement
     /// text is already found in another link.
+    /// </para>
+    /// <para>
+    /// Note that because this module parses the document
+    /// content as standards-compliant HTML and outputs the formatted post-parsed DOM, you should
+    /// only place this module after all other template processing has been performed.
+    /// </para>
     /// </remarks>
     /// <category>Content</category>
     public class AutoLink : IModule
@@ -38,6 +46,8 @@ namespace Wyam.Html
         private readonly IDictionary<string, string> _extraLinks = new Dictionary<string, string>();
         private string _querySelector = "p";
         private bool _matchOnlyWholeWord = false;
+        private List<char> _startWordSeparators = new List<char>();
+        private List<char> _endWordSeparators = new List<char>();
 
         /// <summary>
         /// Creates the module without any initial mappings. Use <c>AddLink(...)</c> to add mappings with fluent methods.
@@ -107,12 +117,50 @@ namespace Wyam.Html
 
         /// <summary>
         /// Forces the string search to only consider whole words (it will not add a link in the middle of a word).
+        /// By default whole words are determined by testing for white space.
         /// </summary>
-        /// <param name="matchOnlyWholeWord">If set to <c>true</c> the module will only insert links at work boundaries.</param>
+        /// <param name="matchOnlyWholeWord">If set to <c>true</c> the module will only insert links at word boundaries.</param>
         /// <returns>The current instance.</returns>
         public AutoLink WithMatchOnlyWholeWord(bool matchOnlyWholeWord = true)
         {
             _matchOnlyWholeWord = matchOnlyWholeWord;
+            return this;
+        }
+
+        /// <summary>
+        /// Adds additional word separator characters when limiting matches to whole words only.
+        /// These additional characters are in addition to the default of splitting words at white space.
+        /// </summary>
+        /// <param name="wordSeparators">Additional word separators that should be considered for the start and end of a word.</param>
+        /// <returns>The current instance.</returns>
+        public AutoLink WithWordSeparators(params char[] wordSeparators)
+        {
+            _startWordSeparators.AddRange(wordSeparators);
+            _endWordSeparators.AddRange(wordSeparators);
+            return this;
+        }
+
+        /// <summary>
+        /// Adds additional start word separator characters when limiting matches to whole words only.
+        /// These additional characters are in addition to the default of splitting words at white space.
+        /// </summary>
+        /// <param name="startWordSeparators">Additional word separators that should be considered for the start of a word.</param>
+        /// <returns>The current instance.</returns>
+        public AutoLink WithStartWordSeparators(params char[] startWordSeparators)
+        {
+            _startWordSeparators.AddRange(startWordSeparators);
+            return this;
+        }
+
+        /// <summary>
+        /// Adds additional end word separator characters when limiting matches to whole words only.
+        /// These additional characters are in addition to the default of splitting words at white space.
+        /// </summary>
+        /// <param name="endWordSeparators">Additional word separators that should be considered for the end of a word.</param>
+        /// <returns>The current instance.</returns>
+        public AutoLink WithEndWordSeparators(params char[] endWordSeparators)
+        {
+            _endWordSeparators.AddRange(endWordSeparators);
             return this;
         }
 
@@ -124,11 +172,11 @@ namespace Wyam.Html
             {
                 try
                 {
-                    // Get the links
+                    // Get the links and HTML decode the keys (if they're encoded) since the text nodes are decoded
                     IDictionary<string, string> links = _links.GetValue(input, context, v => _extraLinks
                         .Concat(v.Where(l => !_extraLinks.ContainsKey(l.Key)))
                         .Where(x => !string.IsNullOrWhiteSpace(x.Value))
-                        .ToDictionary(z => z.Key, z => $"<a href=\"{z.Value}\">{z.Key}</a>"));
+                        .ToDictionary(z => WebUtility.HtmlDecode(z.Key), z => $"<a href=\"{z.Value}\">{z.Key}</a>"));
 
                     // Enumerate all elements that match the query selector not already in a link element
                     List<KeyValuePair<IText, string>> replacements = new List<KeyValuePair<IText, string>>();
@@ -142,8 +190,7 @@ namespace Wyam.Html
                         // Enumerate all descendant text nodes not already in a link element
                         foreach (IText text in element.Descendents().OfType<IText>().Where(t => !t.Ancestors<IHtmlAnchorElement>().Any()))
                         {
-                            string newText;
-                            if (ReplaceStrings(text, links, out newText))
+                            if (ReplaceStrings(text, links, out string newText))
                             {
                                 // Only perform replacement if the text content changed
                                 replacements.Add(new KeyValuePair<IText, string>(text, newText));
@@ -162,7 +209,7 @@ namespace Wyam.Html
                         Stream contentStream = context.GetContentStream();
                         using (StreamWriter writer = contentStream.GetWriter())
                         {
-                            htmlDocument.ToHtml(writer, HtmlMarkupFormatter.Instance);
+                            htmlDocument.ToHtml(writer, ProcessingInstructionFormatter.Instance);
                             writer.Flush();
                             return context.GetDocument(input, contentStream);
                         }
@@ -177,125 +224,124 @@ namespace Wyam.Html
             });
         }
 
-        private bool ReplaceStrings(IText text, IDictionary<string, string> map, out string newText)
+        private bool ReplaceStrings(IText textNode, IDictionary<string, string> map, out string newText)
         {
-            string s = WebUtility.HtmlEncode(text.Text);  // The text content is unencoded so we need to reencode it before performing replacements
-            Trie<char> lookup = new Trie<char>(map.Keys);
-            StringBuilder builder = new StringBuilder();
-            int lastIdx = -1;
-            Trie<char>.Node lastNode = lookup.Root;
-            int matchIdx = -1;
-            HashSet<Trie<char>.Node> badMatches = new HashSet<Trie<char>.Node>();
-            bool replaced = false;
-            for (int i = 0; i < s.Length + 1; i++)
+            string text = textNode.Text;
+            SubstringSegment originalSegment = new SubstringSegment(0, text.Length);
+            List<Segment> segments = new List<Segment>()
             {
-                if (i < s.Length)
+                originalSegment
+            };
+
+            // Perform replacements
+            foreach (KeyValuePair<string, string> kvp in map.OrderByDescending(x => x.Key.Length))
+            {
+                int c = 0;
+                while (c < segments.Count)
                 {
-                    char chr = s[i];
-                    if (lastNode.HasNext(chr))
+                    int index = segments[c].IndexOf(kvp.Key, 0, ref text);
+                    while (index >= 0)
                     {
-                        // Partial match
-                        Trie<char>.Node matchNode = lastNode.Children[chr];
-                        if (!badMatches.Contains(matchNode))
+                        if (CheckWordSeparators(
+                            ref text,
+                            segments[c].StartIndex,
+                            segments[c].StartIndex + segments[c].Length - 1,
+                            index,
+                            index + kvp.Key.Length - 1))
                         {
-                            lastNode = matchNode;
-                            if (matchIdx == -1)
+                            // Insert the new content
+                            Segment replacing = segments[c];
+                            segments[c] = new ReplacedSegment(kvp.Value);
+
+                            // Insert segment before the match
+                            if (index > replacing.StartIndex)
                             {
-                                matchIdx = i;
+                                segments.Insert(c, new SubstringSegment(replacing.StartIndex, index - replacing.StartIndex));
+                                c++;
                             }
-                            continue;
+
+                            // Insert segment after the match
+                            int startIndex = index + kvp.Key.Length;
+                            int endIndex = replacing.StartIndex + replacing.Length;
+                            if (startIndex < endIndex)
+                            {
+                                Segment segment = new SubstringSegment(startIndex, endIndex - startIndex);
+                                if (c + 1 == segments.Count)
+                                {
+                                    segments.Add(segment);
+                                }
+                                else
+                                {
+                                    segments.Insert(c + 1, segment);
+                                }
+                            }
+
+                            // Go to the next segment
+                            index = -1;
+                        }
+                        else
+                        {
+                            index = segments[c].IndexOf(kvp.Key, index - segments[c].StartIndex + 1, ref text);
                         }
                     }
+                    c++;
                 }
-
-                if (lastNode.IsRoot && CheckAdditonalConditions(s, matchIdx, i - 1))
-                {
-                    // Complete match
-                    string key = new string(lastNode.Cumulative.ToArray());
-                    builder.Append(map[key]);
-                    replaced = true;
-                    i = i - 1;
-                    lastIdx = i;
-                }
-                else
-                {
-                    // No match
-                    if (matchIdx != -1)
-                    {
-                        // Backtrack to the last match start and don't consider this match
-                        i = matchIdx - 1;
-                        matchIdx = -1;
-                        badMatches.Add(lastNode);
-                        lastNode = lookup.Root;
-                        continue;
-                    }
-                    builder.Append(i < s.Length ? s.Substring(lastIdx + 1, i - lastIdx) : s.Substring(lastIdx + 1));
-                    lastIdx = i;
-                }
-                badMatches.Clear();
-                matchIdx = -1;
-                lastNode = lookup.Root;
             }
-            newText = replaced ? builder.ToString() : string.Empty;
-            return replaced;
+
+            // Join and escape non-replaced content
+            if (segments.Count > 1 || (segments.Count == 1 && segments[0] != originalSegment))
+            {
+                newText = string.Concat(segments.Select(x => x.GetText(ref text)));
+                return true;
+            }
+
+            newText = null;
+            return false;
         }
 
-        private bool CheckAdditonalConditions(string stringToCheck, int matchStartIndex, int matchEndIndex)
+        private bool CheckWordSeparators(ref string stringToCheck, int substringStartIndex, int substringEndIndex, int matchStartIndex, int matchEndIndex)
         {
             if (_matchOnlyWholeWord)
             {
-                return (matchStartIndex <= 0 || char.IsWhiteSpace(stringToCheck[matchStartIndex - 1]))
-                    && (matchEndIndex >= stringToCheck.Length - 1 || char.IsWhiteSpace(stringToCheck[matchEndIndex + 1]));
+                return (matchStartIndex <= substringStartIndex || char.IsWhiteSpace(stringToCheck[matchStartIndex - 1]) || _startWordSeparators.Contains(stringToCheck[matchStartIndex - 1]))
+                    && (matchEndIndex + 1 > substringEndIndex || char.IsWhiteSpace(stringToCheck[matchEndIndex + 1]) || _endWordSeparators.Contains(stringToCheck[matchEndIndex + 1]));
             }
             return true;
         }
 
-        private class Trie<T> where T : IComparable<T>
+        private abstract class Segment
         {
-            public Node Root { get; }
+            public int StartIndex { get; protected set; } = -1;
+            public int Length { get; protected set; } = -1;
+            public virtual int IndexOf(string value, int startIndex, ref string search) => -1;
+            public abstract string GetText(ref string text);
+        }
 
-            public Trie(IEnumerable<IEnumerable<T>> elems)
+        private class SubstringSegment : Segment
+        {
+            public SubstringSegment(int startIndex, int length)
             {
-                Root = new Node(new T[0]);
-                foreach (var elem in elems)
-                {
-                    LoadSingle(elem);
-                }
+                StartIndex = startIndex;
+                Length = length;
             }
 
-            private void LoadSingle(IEnumerable<T> word)
+            public override int IndexOf(string value, int startIndex, ref string search) =>
+                search.IndexOf(value, StartIndex + startIndex, Length - startIndex);
+
+            public override string GetText(ref string text) =>
+                WebUtility.HtmlEncode(text.Substring(StartIndex, Length));
+        }
+
+        private class ReplacedSegment : Segment
+        {
+            private readonly string _text;
+
+            public ReplacedSegment(string text)
             {
-                Node lastNode = Root;
-                foreach (var chr in word)
-                {
-                    Node node;
-                    if (!lastNode.Children.TryGetValue(chr, out node))
-                    {
-                        node = new Node(lastNode.Cumulative.Concat(new[] { chr }));
-                        lastNode.Children[chr] = node;
-                    }
-                    lastNode = node;
-                }
-                lastNode.IsRoot = true;
+                _text = text;
             }
 
-            public class Node
-            {
-                public IEnumerable<T> Cumulative { get; }
-                public bool IsRoot { get; set; }
-                public IDictionary<T, Node> Children { get; }
-
-                public bool HasNext(T elem)
-                {
-                    return Children.Keys.Any(k => k.Equals(elem));
-                }
-
-                public Node(IEnumerable<T> cumulative)
-                {
-                    Cumulative = cumulative;
-                    Children = new Dictionary<T, Node>();
-                }
-            }
+            public override string GetText(ref string text) => _text;
         }
     }
 }

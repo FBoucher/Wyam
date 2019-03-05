@@ -4,10 +4,20 @@ using Wyam.Common.IO;
 
 namespace Wyam.Common.Util
 {
+    /// <summary>
+    /// Helps generate normalized links.
+    /// </summary>
     public static class LinkGenerator
     {
-        public static readonly string[] DefaultHidePages = {"index"};
-        public static readonly string[] DefaultHideExtensions = {".htm", ".html"};
+        /// <summary>
+        /// The default page names to hide in links.
+        /// </summary>
+        public static readonly string[] DefaultHidePages = { "index" };
+
+        /// <summary>
+        /// The default extensions to hide in links.
+        /// </summary>
+        public static readonly string[] DefaultHideExtensions = { ".htm", ".html" };
 
         /// <summary>
         /// Generates a normalized link given a path and other conditions.
@@ -75,6 +85,29 @@ namespace Wyam.Common.Util
             Uri uri = builder.Uri;
             string renderedLink = hasHost ? uri.AbsoluteUri : uri.AbsolutePath;
             return lowercase ? renderedLink.ToLowerInvariant() : renderedLink;
+        }
+
+        /// <summary>
+        /// Checks if a string contains an absolute URI with a "http" or "https" scheme and returns it if it does.
+        /// </summary>
+        /// <param name="str">The string to check.</param>
+        /// <param name="absoluteUri">The resulting absolute URI.</param>
+        /// <returns><c>true</c> if the string contains an absolute URI, <c>false</c> otherwise.</returns>
+        public static bool TryGetAbsoluteHttpUri(string str, out string absoluteUri)
+        {
+            if (!string.IsNullOrWhiteSpace(str))
+            {
+                // Return the actual URI if it's absolute
+                if (Uri.TryCreate(str, UriKind.Absolute, out Uri uri)
+                    && (uri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase)
+                        || uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase)))
+                {
+                    absoluteUri = uri.ToString();
+                    return true;
+                }
+            }
+            absoluteUri = null;
+            return false;
         }
     }
 }

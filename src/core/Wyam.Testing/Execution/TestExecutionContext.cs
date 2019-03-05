@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -14,6 +16,7 @@ using Wyam.Common.IO;
 using Wyam.Common.JavaScript;
 using Wyam.Common.Meta;
 using Wyam.Common.Modules;
+using Wyam.Common.Shortcodes;
 using Wyam.Common.Tracing;
 using Wyam.Common.Util;
 using Wyam.Testing.Caching;
@@ -21,13 +24,14 @@ using Wyam.Testing.Configuration;
 using Wyam.Testing.Documents;
 using Wyam.Testing.IO;
 using Wyam.Testing.Meta;
+using Wyam.Testing.Shortcodes;
 
 namespace Wyam.Testing.Execution
 {
     /// <summary>
     /// An <see cref="IExecutionContext"/> that can be used for testing.
     /// </summary>
-    public class TestExecutionContext : IExecutionContext
+    public class TestExecutionContext : IExecutionContext, ITypeConversions
     {
         private readonly TestSettings _settings = new TestSettings();
 
@@ -95,6 +99,15 @@ namespace Wyam.Testing.Execution
             {
                 Source = source,
                 Content = GetContent(stream)
+            };
+        }
+
+        /// <inheritdoc/>
+        public IDocument GetDocument(FilePath source, IEnumerable<KeyValuePair<string, object>> items = null)
+        {
+            return new TestDocument(items)
+            {
+                Source = source
             };
         }
 
@@ -169,18 +182,54 @@ namespace Wyam.Testing.Execution
 
         IReadOnlySettings IExecutionContext.Settings => Settings;
 
+        public IShortcodeCollection Shortcodes { get; set; } = new TestShortcodeCollection();
+
+        IReadOnlyShortcodeCollection IExecutionContext.Shortcodes => Shortcodes;
+
         /// <inheritdoc/>
         public Stream GetContentStream(string content = null) =>
             string.IsNullOrEmpty(content) ? new MemoryStream() : new MemoryStream(Encoding.UTF8.GetBytes(content));
 
         /// <inheritdoc/>
+        public HttpClient CreateHttpClient() =>
+            new HttpClient(new TestHttpMessageHandler(HttpResponseFunc, null));
+
+        /// <inheritdoc/>
+        public HttpClient CreateHttpClient(HttpMessageHandler handler) =>
+            new HttpClient(new TestHttpMessageHandler(HttpResponseFunc, handler));
+
+        /// <summary>
+        /// A message handler that should be used to register <see cref="HttpResponseMessage"/>
+        /// instances for a given request.
+        /// </summary>
+        public Func<HttpRequestMessage, HttpMessageHandler, HttpResponseMessage> HttpResponseFunc { get; set; }
+            = (_, __) => new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent(string.Empty)
+            };
+
+        public Dictionary<(Type Value, Type Result), Func<object, object>> TypeConversions { get; } = new Dictionary<(Type Value, Type Result), Func<object, object>>();
+
+        public void AddTypeConversion<T, TResult>(Func<T, TResult> typeConversion) => TypeConversions.Add((typeof(T), typeof(TResult)), x => typeConversion((T)x));
+
+        /// <inheritdoc/>
         public bool TryConvert<T>(object value, out T result)
         {
+            // Check if there's a test-specific conversion
+            if (TypeConversions.TryGetValue((value?.GetType() ?? typeof(object), typeof(T)), out Func<object, object> typeConversion))
+            {
+                result = (T)typeConversion(value);
+                return true;
+            }
+
+            // Default conversion is just to cast
             if (value is T)
             {
                 result = (T)value;
                 return true;
             }
+
             result = default(T);
             return value == null;
         }
@@ -189,7 +238,6 @@ namespace Wyam.Testing.Execution
         public IReadOnlyList<IDocument> Execute(IEnumerable<IModule> modules, IEnumerable<IDocument> inputs) =>
             Execute(modules, inputs, null);
 
-        // Executes the module with an empty document containing the specified metadata items
         /// <inheritdoc/>
         public IReadOnlyList<IDocument> Execute(IEnumerable<IModule> modules, IEnumerable<KeyValuePair<string, object>> items = null) =>
             Execute(modules, null, items);
@@ -211,31 +259,51 @@ namespace Wyam.Testing.Execution
             return inputs.ToList();
         }
 
-        public Func<IJsEngine> JsEngineFunc = () =>
+        public IShortcodeResult GetShortcodeResult(string content, IEnumerable<KeyValuePair<string, object>> metadata = null)
+            => GetShortcodeResult(content == null ? null : GetContentStream(content), metadata);
+
+        public IShortcodeResult GetShortcodeResult(Stream content, IEnumerable<KeyValuePair<string, object>> metadata = null)
+            => new ShortcodeResult(content, metadata);
+
+        private class ShortcodeResult : IShortcodeResult
         {
+            public Stream Stream { get; }
+
+            public IEnumerable<KeyValuePair<string, object>> Metadata { get; }
+
+            public ShortcodeResult(Stream stream, IEnumerable<KeyValuePair<string, object>> metadata)
+            {
+                Stream = stream;
+                Metadata = metadata;
+            }
+        }
+
+        public Func<IJavaScriptEngine> JsEngineFunc { get; set; } = () =>
             throw new NotImplementedException("JavaScript test engine not initialized. Wyam.Testing.JavaScript can be used to return a working JavaScript engine");
-        };
 
         /// <inheritdoc/>
-        public IJsEnginePool GetJsEnginePool(Action<IJsEngine> initializer = null,
-            int startEngines = 10, int maxEngines = 25,
-            int maxUsagesPerEngine = 100, TimeSpan? engineTimeout = null) =>
+        public IJavaScriptEnginePool GetJavaScriptEnginePool(
+            Action<IJavaScriptEngine> initializer = null,
+            int startEngines = 10,
+            int maxEngines = 25,
+            int maxUsagesPerEngine = 100,
+            TimeSpan? engineTimeout = null) =>
             new TestJsEnginePool(JsEngineFunc, initializer);
 
-        private class TestJsEnginePool : IJsEnginePool
+        private class TestJsEnginePool : IJavaScriptEnginePool
         {
-            private readonly Func<IJsEngine> _engineFunc;
-            private readonly Action<IJsEngine> _initializer;
+            private readonly Func<IJavaScriptEngine> _engineFunc;
+            private readonly Action<IJavaScriptEngine> _initializer;
 
-            public TestJsEnginePool(Func<IJsEngine> engineFunc, Action<IJsEngine> initializer)
+            public TestJsEnginePool(Func<IJavaScriptEngine> engineFunc, Action<IJavaScriptEngine> initializer)
             {
                 _engineFunc = engineFunc;
                 _initializer = initializer;
             }
 
-            public IJsEngine GetEngine(TimeSpan? timeout = null)
+            public IJavaScriptEngine GetEngine(TimeSpan? timeout = null)
             {
-                IJsEngine engine = _engineFunc();
+                IJavaScriptEngine engine = _engineFunc();
                 _initializer?.Invoke(engine);
                 return engine;
             }
@@ -244,7 +312,7 @@ namespace Wyam.Testing.Execution
             {
             }
 
-            public void RecycleEngine(IJsEngine engine)
+            public void RecycleEngine(IJavaScriptEngine engine)
             {
                 throw new NotImplementedException();
             }
@@ -264,7 +332,7 @@ namespace Wyam.Testing.Execution
         /// <inheritdoc/>
         IEnumerator IEnumerable.GetEnumerator()
         {
-            return ((IEnumerable) _settings).GetEnumerator();
+            return ((IEnumerable)_settings).GetEnumerator();
         }
 
         /// <inheritdoc/>
@@ -272,9 +340,6 @@ namespace Wyam.Testing.Execution
 
         /// <inheritdoc/>
         public bool ContainsKey(string key) => _settings.ContainsKey(key);
-
-        /// <inheritdoc/>
-        public bool TryGetValue(string key, out object value) => _settings.TryGetValue(key, out value);
 
         /// <inheritdoc/>
         public object this[string key] => _settings[key];
@@ -299,6 +364,12 @@ namespace Wyam.Testing.Execution
 
         /// <inheritdoc/>
         public T Get<T>(string key, T defaultValue) => _settings.Get(key, defaultValue);
+
+        /// <inheritdoc/>
+        public bool TryGetValue<T>(string key, out T value) => _settings.TryGetValue<T>(key, out value);
+
+        /// <inheritdoc/>
+        public bool TryGetValue(string key, out object value) => _settings.TryGetValue(key, out value);
 
         public IMetadata GetMetadata(params string[] keys) => _settings.GetMetadata(keys);
     }

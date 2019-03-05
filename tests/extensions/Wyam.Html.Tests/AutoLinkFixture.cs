@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using NSubstitute;
 using NUnit.Framework;
-using Wyam.Common;
+using Shouldly;
 using Wyam.Common.Documents;
 using Wyam.Common.Execution;
 using Wyam.Testing;
@@ -25,7 +20,7 @@ namespace Wyam.Html.Tests
             public void NoReplacementReturnsSameDocument()
             {
                 // Given
-                string input = @"<html>
+                const string input = @"<html>
                         <head>
                             <title>Foobar</title>
                         </head>
@@ -45,14 +40,14 @@ namespace Wyam.Html.Tests
                 IList<IDocument> results = autoLink.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results, Is.EquivalentTo(new[] { document }));
+                results.Single().ShouldBeSameAs(document);
             }
 
             [Test]
             public void AddsLink()
             {
                 // Given
-                string input = @"<html>
+                const string input = @"<html>
                         <head>
                             <title>Foobar</title>
                         </head>
@@ -61,7 +56,7 @@ namespace Wyam.Html.Tests
                             <p>This is some Foobar text</p>
                         </body>
                     </html>";
-                string output = @"<html><head>
+                const string output = @"<html><head>
                             <title>Foobar</title>
                         </head>
                         <body>
@@ -80,14 +75,14 @@ namespace Wyam.Html.Tests
                 IList<IDocument> results = autoLink.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { output.Replace("\r\n", "\n") }));
+                results.Single().Content.ShouldBe(output, StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
             public void AddsLinkWithoutImpactingEscapes()
             {
                 // Given
-                string input = @"<html>
+                const string input = @"<html>
                         <head>
                             <title>Foobar</title>
                         </head>
@@ -96,7 +91,7 @@ namespace Wyam.Html.Tests
                             <p>This A&lt;string, List&lt;B&gt;&gt; is some Foobar text</p>
                         </body>
                     </html>";
-                string output = @"<html><head>
+                const string output = @"<html><head>
                             <title>Foobar</title>
                         </head>
                         <body>
@@ -115,14 +110,14 @@ namespace Wyam.Html.Tests
                 IList<IDocument> results = autoLink.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { output.Replace("\r\n", "\n") }));
+                results.Single().Content.ShouldBe(output, StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
             public void AddsLinkWithAlternateQuerySelector()
             {
                 // Given
-                string input = @"<html>
+                const string input = @"<html>
                         <head>
                             <title>Foobar</title>
                         </head>
@@ -132,7 +127,7 @@ namespace Wyam.Html.Tests
                             <p>This is some Foobar text</p>
                         </body>
                     </html>";
-                string output = @"<html><head>
+                const string output = @"<html><head>
                             <title>Foobar</title>
                         </head>
                         <body>
@@ -152,14 +147,14 @@ namespace Wyam.Html.Tests
                 IList<IDocument> results = autoLink.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { output.Replace("\r\n", "\n") }));
+                results.Single().Content.ShouldBe(output, StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
             public void AddsLinkWhenContainerHasChildElements()
             {
                 // Given
-                string input = @"<html>
+                const string input = @"<html>
                         <head>
                             <title>Foobar</title>
                         </head>
@@ -168,7 +163,7 @@ namespace Wyam.Html.Tests
                             <p>This <i>is</i> some Foobar <b>text</b></p>
                         </body>
                     </html>";
-                string output = @"<html><head>
+                const string output = @"<html><head>
                             <title>Foobar</title>
                         </head>
                         <body>
@@ -187,14 +182,14 @@ namespace Wyam.Html.Tests
                 IList<IDocument> results = autoLink.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { output.Replace("\r\n", "\n") }));
+                results.Single().Content.ShouldBe(output, StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
             public void AddsLinkWhenInsideChildElement()
             {
                 // Given
-                string input = @"<html>
+                const string input = @"<html>
                         <head>
                             <title>Foobar</title>
                         </head>
@@ -203,7 +198,7 @@ namespace Wyam.Html.Tests
                             <p>This <i>is</i> some <i>Foobar</i> <b>text</b></p>
                         </body>
                     </html>";
-                string output = @"<html><head>
+                const string output = @"<html><head>
                             <title>Foobar</title>
                         </head>
                         <body>
@@ -222,14 +217,14 @@ namespace Wyam.Html.Tests
                 IList<IDocument> results = autoLink.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { output.Replace("\r\n", "\n") }));
+                results.Single().Content.ShouldBe(output, StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
             public void DoesNotReplaceInAttributes()
             {
                 // Given
-                string input = @"<html>
+                const string input = @"<html>
                         <head>
                             <title>Foobar</title>
                         </head>
@@ -238,7 +233,7 @@ namespace Wyam.Html.Tests
                             <p attr=""Foobar"">This is some Foobar <b ref=""Foobar"">text</b></p>
                         </body>
                     </html>";
-                string output = @"<html><head>
+                const string output = @"<html><head>
                             <title>Foobar</title>
                         </head>
                         <body>
@@ -257,14 +252,14 @@ namespace Wyam.Html.Tests
                 IList<IDocument> results = autoLink.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { output.Replace("\r\n", "\n") }));
+                results.Single().Content.ShouldBe(output, StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
             public void AddsMultipleLinksInSameElement()
             {
                 // Given
-                string input = @"<html>
+                const string input = @"<html>
                         <head>
                             <title>Foobar</title>
                         </head>
@@ -273,7 +268,7 @@ namespace Wyam.Html.Tests
                             <p>This is some <i>Foobar</i> text Foobaz</p>
                         </body>
                     </html>";
-                string output = @"<html><head>
+                const string output = @"<html><head>
                             <title>Foobar</title>
                         </head>
                         <body>
@@ -293,14 +288,14 @@ namespace Wyam.Html.Tests
                 IList<IDocument> results = autoLink.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { output.Replace("\r\n", "\n") }));
+                results.Single().Content.ShouldBe(output, StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
             public void AddsMultipleLinksInDifferentElements()
             {
                 // Given
-                string input = @"<html>
+                const string input = @"<html>
                         <head>
                             <title>Foobar</title>
                         </head>
@@ -310,7 +305,7 @@ namespace Wyam.Html.Tests
                             <p>Another Foobaz paragraph</p>
                         </body>
                     </html>";
-                string output = @"<html><head>
+                const string output = @"<html><head>
                             <title>Foobar</title>
                         </head>
                         <body>
@@ -331,14 +326,14 @@ namespace Wyam.Html.Tests
                 IList<IDocument> results = autoLink.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { output.Replace("\r\n", "\n") }));
+                results.Single().Content.ShouldBe(output, StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
             public void DoesNotAddLinksInExistingLinkElements()
             {
                 // Given
-                string input = @"<html>
+                const string input = @"<html>
                         <head>
                             <title>Foobar</title>
                         </head>
@@ -347,7 +342,7 @@ namespace Wyam.Html.Tests
                             <p>This is some <a href=""http://www.yahoo.com"">Foobar</a> text Foobaz</p>
                         </body>
                     </html>";
-                string output = @"<html><head>
+                const string output = @"<html><head>
                             <title>Foobar</title>
                         </head>
                         <body>
@@ -367,14 +362,14 @@ namespace Wyam.Html.Tests
                 IList<IDocument> results = autoLink.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { output.Replace("\r\n", "\n") }));
+                results.Single().Content.ShouldBe(output, StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
             public void AddsMultipleLinksWhenFirstIsSubstring()
             {
                 // Given
-                string input = @"<html>
+                const string input = @"<html>
                         <head>
                             <title>Foobar</title>
                         </head>
@@ -383,7 +378,7 @@ namespace Wyam.Html.Tests
                             <p>This is some <i>Foobar</i> text Foobaz</p>
                         </body>
                     </html>";
-                string output = @"<html><head>
+                const string output = @"<html><head>
                             <title>Foobar</title>
                         </head>
                         <body>
@@ -403,14 +398,14 @@ namespace Wyam.Html.Tests
                 IList<IDocument> results = autoLink.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { output.Replace("\r\n", "\n") }));
+                results.Single().Content.ShouldBe(output, StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
             public void AddLinkMethodTakesPrecedence()
             {
                 // Given
-                string input = @"<html>
+                const string input = @"<html>
                         <head>
                             <title>Foobar</title>
                         </head>
@@ -419,7 +414,7 @@ namespace Wyam.Html.Tests
                             <p>This is some <i>Foobar</i> text Foobaz</p>
                         </body>
                     </html>";
-                string output = @"<html><head>
+                const string output = @"<html><head>
                             <title>Foobar</title>
                         </head>
                         <body>
@@ -439,14 +434,14 @@ namespace Wyam.Html.Tests
                 IList<IDocument> results = autoLink.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { output.Replace("\r\n", "\n") }));
+                results.Single().Content.ShouldBe(output, StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
             public void IgnoreSubstringIfSearchingForWholeWords()
             {
                 // Given
-                string input = @"<html>
+                const string input = @"<html>
                         <head>
                             <title>Foobar</title>
                         </head>
@@ -455,7 +450,7 @@ namespace Wyam.Html.Tests
                             <p>This is some <i>Foo</i> text Foobaz</p>
                         </body>
                     </html>";
-                string output = @"<html><head>
+                const string output = @"<html><head>
                             <title>Foobar</title>
                         </head>
                         <body>
@@ -474,14 +469,14 @@ namespace Wyam.Html.Tests
                 IList<IDocument> results = autoLink.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { output.Replace("\r\n", "\n") }));
+                results.Single().Content.ShouldBe(output, StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
             public void AdjacentWords()
             {
                 // Given
-                string input = @"<html>
+                const string input = @"<html>
                         <head>
                             <title>Foobar</title>
                         </head>
@@ -490,7 +485,7 @@ namespace Wyam.Html.Tests
                             <p>abc Foo(baz) xyz</p>
                         </body>
                     </html>";
-                string output = @"<html><head>
+                const string output = @"<html><head>
                             <title>Foobar</title>
                         </head>
                         <body>
@@ -510,14 +505,50 @@ namespace Wyam.Html.Tests
                 IList<IDocument> results = autoLink.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { output.Replace("\r\n", "\n") }));
+                results.Single().Content.ShouldBe(output, StringCompareShould.IgnoreLineEndings);
+            }
+
+            [Test]
+            public void WordAtTheEndAfterPreviousWord()
+            {
+                // Given
+                const string input = @"<html>
+                        <head>
+                            <title>Foobar</title>
+                        </head>
+                        <body>
+                            <h1>Title</h1>
+                            <p>sdfg asdf aasdf asf asdf asdf asdf aabc Fuzz bazz def efg baz x</p>
+                        </body>
+                    </html>";
+                const string output = @"<html><head>
+                            <title>Foobar</title>
+                        </head>
+                        <body>
+                            <h1>Title</h1>
+                            <p>sdfg asdf aasdf asf asdf asdf asdf aabc <a href=""http://www.google.com"">Fuzz</a> bazz def efg <a href=""http://www.yahoo.com"">baz</a> x</p>
+                        
+                    </body></html>";
+                TestExecutionContext context = new TestExecutionContext();
+                TestDocument document = new TestDocument(input);
+                AutoLink autoLink = new AutoLink(new Dictionary<string, string>()
+                {
+                    { "Fuzz", "http://www.google.com" },
+                    { "baz", "http://www.yahoo.com" },
+                }).WithMatchOnlyWholeWord();
+
+                // When
+                IList<IDocument> results = autoLink.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
+
+                // Then
+                results.Single().Content.ShouldBe(output, StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
             public void NonWholeWords()
             {
                 // Given
-                string input = @"<html>
+                const string input = @"<html>
                         <head>
                             <title>Foobar</title>
                         </head>
@@ -538,7 +569,86 @@ namespace Wyam.Html.Tests
                 IList<IDocument> results = autoLink.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results, Is.EquivalentTo(new[] { document }));
+                results.Single().ShouldBeSameAs(document);
+            }
+
+            [TestCase("<li>Foo</li>", "<li>Foo</li>")]
+            [TestCase("<li>Foo&lt;T&gt;</li>", "<li>Foo&lt;T&gt;</li>")]
+            [TestCase("<li><code>Foo</code></li>", @"<li><code><a href=""http://www.foo.com"">Foo</a></code></li>")]
+            [TestCase("<li><code>Foo&lt;T&gt;</code></li>", @"<li><code><a href=""http://www.fooOfT.com"">Foo&lt;T&gt;</a></code></li>")]
+            [TestCase("<li><code>Foo&lt;Foo&gt;</code></li>", @"<li><code>Foo&lt;<a href=""http://www.foo.com"">Foo</a>&gt;</code></li>")]
+            [TestCase("<li><code>Foo&lt;Foo&lt;T&gt;&gt;</code></li>", @"<li><code>Foo&lt;<a href=""http://www.fooOfT.com"">Foo&lt;T&gt;</a>&gt;</code></li>")]
+            [TestCase("<li><code>IEnumerable&lt;Foo&gt;</code></li>", @"<li><code>IEnumerable&lt;<a href=""http://www.foo.com"">Foo</a>&gt;</code></li>")]
+            [TestCase("<li><code>IEnumerable&lt;Foo&lt;T&gt;&gt;</code></li>", @"<li><code>IEnumerable&lt;<a href=""http://www.fooOfT.com"">Foo&lt;T&gt;</a>&gt;</code></li>")]
+            [TestCase("<li><code>IEnumerable&lt;IEnumerable&lt;Foo&gt;&gt;</code></li>", @"<li><code>IEnumerable&lt;IEnumerable&lt;<a href=""http://www.foo.com"">Foo</a>&gt;&gt;</code></li>")]
+            [TestCase("<li><code>IEnumerable&lt;IEnumerable&lt;Foo&lt;T&gt;&gt;&gt;</code></li>", @"<li><code>IEnumerable&lt;IEnumerable&lt;<a href=""http://www.fooOfT.com"">Foo&lt;T&gt;</a>&gt;&gt;</code></li>")]
+            public void AddLinksToGenericWordsInsideAngleBrackets(string input, string expected)
+            {
+                // Given
+                string inputContent = $"<html><head></head><body><foo></foo><ul>{input}</ul></body></html>";
+                string expectedContent = $"<html><head></head><body><foo></foo><ul>{expected}</ul></body></html>";
+                TestExecutionContext context = new TestExecutionContext();
+                TestDocument document = new TestDocument(inputContent);
+                Dictionary<string, string> links = new Dictionary<string, string>()
+                {
+                    { "Foo&lt;T&gt;", "http://www.fooOfT.com" },
+                    { "Foo", "http://www.foo.com" },
+                };
+                AutoLink autoLink = new AutoLink(links)
+                    .WithQuerySelector("code")
+                    .WithMatchOnlyWholeWord()
+                    .WithStartWordSeparators('<')
+                    .WithEndWordSeparators('>');
+
+                // When
+                IList<IDocument> results = autoLink.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
+
+                // Then
+                results.Single().Content.ShouldBe(expectedContent);
+            }
+
+            [Test]
+            public void DoesNotRewriteOutsideQuerySelectorWhenNoReplacements()
+            {
+                // Given
+                string inputContent = $"<div>@x.Select(x => x) <code>Foo bar</code></div>";
+                string expectedContent = $"<div>@x.Select(x => x) <code>Foo bar</code></div>";
+                TestExecutionContext context = new TestExecutionContext();
+                TestDocument document = new TestDocument(inputContent);
+                Dictionary<string, string> links = new Dictionary<string, string>();
+                AutoLink autoLink = new AutoLink(links)
+                    .WithQuerySelector("code")
+                    .WithMatchOnlyWholeWord()
+                    .WithStartWordSeparators('<')
+                    .WithEndWordSeparators('>');
+
+                // When
+                IList<IDocument> results = autoLink.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
+
+                // Then
+                results.Single().Content.ShouldBe(expectedContent);
+            }
+
+            [Test]
+            public void NoReplacementWithQuerySelectorReturnsSameDocument()
+            {
+                // Given
+                string inputContent = $"<div>@x.Select(x => x) <code>Foo bar</code></div>";
+                string expectedContent = $"<div>@x.Select(x => x) <code>Foo bar</code></div>";
+                TestExecutionContext context = new TestExecutionContext();
+                TestDocument document = new TestDocument(inputContent);
+                Dictionary<string, string> links = new Dictionary<string, string>();
+                AutoLink autoLink = new AutoLink(links)
+                    .WithQuerySelector("code")
+                    .WithMatchOnlyWholeWord()
+                    .WithStartWordSeparators('<')
+                    .WithEndWordSeparators('>');
+
+                // When
+                IList<IDocument> results = autoLink.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
+
+                // Then
+                results.Single().ShouldBeSameAs(document);
             }
         }
     }

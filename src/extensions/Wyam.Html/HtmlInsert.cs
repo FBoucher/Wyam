@@ -21,6 +21,13 @@ namespace Wyam.Html
     /// Queries HTML content of the input documents and inserts new content into the elements that
     /// match a query selector.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Note that because this module parses the document
+    /// content as standards-compliant HTML and outputs the formatted post-parsed DOM, you should
+    /// only place this module after all other template processing has been performed.
+    /// </para>
+    /// </remarks>
     /// <category>Content</category>
     public class HtmlInsert : IModule
     {
@@ -37,7 +44,7 @@ namespace Wyam.Html
         public HtmlInsert(string querySelector, string content)
         {
             _querySelector = querySelector;
-            _content = (doc,ctx) => content;
+            _content = (doc, ctx) => content;
         }
 
         /// <summary>
@@ -111,7 +118,7 @@ namespace Wyam.Html
                             Stream contentStream = context.GetContentStream();
                             using (StreamWriter writer = contentStream.GetWriter())
                             {
-                                htmlDocument.ToHtml(writer, HtmlMarkupFormatter.Instance);
+                                htmlDocument.ToHtml(writer, ProcessingInstructionFormatter.Instance);
                                 writer.Flush();
                                 return context.GetDocument(input, contentStream);
                             }

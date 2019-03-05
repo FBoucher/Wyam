@@ -3,6 +3,7 @@ using Wyam.Common.Documents;
 using Wyam.Common.Execution;
 using Wyam.Common.IO;
 using Wyam.Common.Meta;
+using Wyam.Common.Shortcodes;
 using Wyam.Core.Documents;
 using Wyam.Core.Execution;
 
@@ -29,6 +30,8 @@ namespace Wyam.Configuration.ConfigScript
 
         public ISettings Settings => _engine.Settings;
 
+        public IShortcodeCollection ShortcodeCollection => _engine.Shortcodes;
+
         public string ApplicationInput => _engine.ApplicationInput;
 
         public IDocumentFactory DocumentFactory
@@ -43,7 +46,9 @@ namespace Wyam.Configuration.ConfigScript
             set { _engine.ContentStreamFactory = value; }
         }
 
-        public void SetCustomDocumentType<T>() where T : CustomDocument, new() =>
+        public void SetCustomDocumentType<T>()
+            where T : CustomDocument, new()
+            =>
             _engine.DocumentFactory = new CustomDocumentFactory<T>(_engine.DocumentFactory);
     }
 }

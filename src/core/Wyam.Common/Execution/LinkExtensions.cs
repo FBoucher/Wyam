@@ -1,4 +1,5 @@
-﻿using Wyam.Common.Configuration;
+﻿using System;
+using Wyam.Common.Configuration;
 using Wyam.Common.IO;
 using Wyam.Common.Meta;
 using Wyam.Common.Util;
@@ -61,8 +62,19 @@ namespace Wyam.Common.Execution
         /// </returns>
         public static string GetLink(this IExecutionContext context, IMetadata metadata, string key, bool includeHost = false)
         {
-            FilePath filePath = metadata?.FilePath(key);
-            return filePath != null ? GetLink(context, filePath, includeHost) : null;
+            if (metadata?.ContainsKey(key) == true)
+            {
+                // Return the actual URI if it's absolute
+                if (LinkGenerator.TryGetAbsoluteHttpUri(metadata.String(key), out string absoluteUri))
+                {
+                    return absoluteUri;
+                }
+
+                // Otherwise try to process the value as a file path
+                FilePath filePath = metadata.FilePath(key);
+                return filePath != null ? GetLink(context, filePath, includeHost) : null;
+            }
+            return null;
         }
 
         /// <summary>
@@ -79,8 +91,16 @@ namespace Wyam.Common.Execution
         /// <returns>
         /// A string representation of the path suitable for a web link.
         /// </returns>
-        public static string GetLink(this IExecutionContext context, string path, bool includeHost = false) =>
-            GetLink(
+        public static string GetLink(this IExecutionContext context, string path, bool includeHost = false)
+        {
+            // Return the actual URI if it's absolute
+            if (path != null && LinkGenerator.TryGetAbsoluteHttpUri(path, out string absoluteUri))
+            {
+                return absoluteUri;
+            }
+
+            // Otherwise process the path as a FilePath
+            return GetLink(
                 context,
                 path == null ? null : new FilePath(path),
                 includeHost ? context.String(Keys.Host) : null,
@@ -89,6 +109,7 @@ namespace Wyam.Common.Execution
                 context.Bool(Keys.LinkHideIndexPages),
                 context.Bool(Keys.LinkHideExtensions),
                 context.Bool(Keys.LinkLowercase));
+        }
 
         /// <summary>
         /// Converts the path into a string appropriate for use as a link, overriding one or more
@@ -106,8 +127,17 @@ namespace Wyam.Common.Execution
         /// A string representation of the path suitable for a web link with the specified
         /// root and hidden file name or extension.
         /// </returns>
-        public static string GetLink(this IExecutionContext context, string path, string host, DirectoryPath root, bool useHttps, bool hideIndexPages, bool hideExtensions) =>
-            GetLink(context, path == null ? null : new FilePath(path), host, root, useHttps, hideIndexPages, hideExtensions);
+        public static string GetLink(this IExecutionContext context, string path, string host, DirectoryPath root, bool useHttps, bool hideIndexPages, bool hideExtensions)
+        {
+            // Return the actual URI if it's absolute
+            if (path != null && LinkGenerator.TryGetAbsoluteHttpUri(path, out string absoluteUri))
+            {
+                return absoluteUri;
+            }
+
+            // Otherwise process the path as a FilePath
+            return GetLink(context, path == null ? null : new FilePath(path), host, root, useHttps, hideIndexPages, hideExtensions);
+        }
 
         /// <summary>
         /// Converts the specified path into a string appropriate for use as a link using default settings from the

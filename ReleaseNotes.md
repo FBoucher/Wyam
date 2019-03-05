@@ -1,3 +1,145 @@
+# 2.2.3
+
+- [Feature] New `Raw` shortcode useful for escaping inner shortcode syntax
+- [Refactoring] Changes the special nested escape processing instruction for shortcodes from a standard processing instruction to `<?* ... ?>`
+- [Fix] Fixes a regression in `AutoLink` where a new document was being returned when it shouldn't have been (#786)
+- [Fix] Moved the `AutoLink` module in docs to execute after all template processing (#786)
+
+# 2.2.2
+
+- [Feature] The `Include` shortcode now tracks what file it's been called from (including nested includes) and attempts to first resolve includes relative to the current file
+- [Feature] Shortcodes are now evaluated recursively and can be nested (but must use the same pre vs. post rendering delimiter as their parent)
+- [Feature] Shortcodes can now be evaluated _before_ rendering with the `<?! ... /?>` syntax as well as after rendering with the existing `<?# ... /?>` syntax
+- [Fix] Temporary workaround for shortcodes not working under certain conditions after HTML processing (#784)
+
+# 2.2.1
+
+- [Feature] New `Highlight` shortcode
+- [Feature] New `YouTube` shortcode
+- [Feature] New `Giphy` shortcode
+- [Feature] New `CodePen` shortcode
+- [Feature] Improvements to `Sass` module processing of `@import` including a new `.WithImportPath()` delegate that can fine-tune import path locations
+- [Refactoring] Refactored `Embed` shortcode to make derived oEmbed shortcodes easier to implement
+- [Refactoring] Refactored `HttpClient` support in `ExecutionContext` to work more like `HttpClientFactory` by sharing a `HttpMessageHandler` instead of a `HttpClient` instance
+
+# 2.2.0
+
+- **[Breaking Change]** Removes BookSite and the Velocity theme (#764)
+- [Feature] Shortcodes! Take a look at [the docs](https://wyam.io/docs/concepts/shortcodes) for more information (#359)
+- [Feature] New `MirrorResources` module to download CDN links and mirror them locally (#781)
+- [Refactoring] New `IExecutionContext.HttpClient` and `IExecutionContext.GetHttpClient(HttpMessageHandler)` to manage a single shared `HttpClient` instance
+- [Refactoring] New support in `Wyam.Testing` and `TestExecutionContext` for testing modules that use a `HttpClient`
+- [Feature] New `IMetadata.String()` extension that takes a formatting function to apply if the key exists in the metadata
+- [Feature] New `IMetadata.TryGetValue<T>()` method to attempt getting a metadata value, but only if it can be converted/cast to `T`
+- [Feature] New `IMetadata` extension methods to make generating XML-to-LINQ trees from metadata values easier
+- [Fix] Fixed a bug when the `Sass` module processes Sass files that have includes which aren't under an `input` folder
+
+# 2.1.3
+
+- [Fix] Fixes a possible concurrency bug when adding/removing trace loggers and indenting
+- [Fix] Fixes for URL absolute link validation (#773, thanks @glennawatson)
+- [Refactoring] Changed line ending behavior for files in the repository and re-normalized line endings to LF (#772, thanks @glennawatson)
+- [Feature] Updates to the globber and file system abstractions to deal with file system case sensitivity better (#771, thanks @glennawatson)
+- [Fix] Allow the `If` module indexer to be accessed without casting (#769, thanks @ociaw)
+- [Refactoring] Big performance improvement to the `AutoLink` module (#766)
+- [Fix] Fixed some quirks with the new diagram panning/zooming
+
+# 2.1.2
+
+- [Fix] Fixed directional arrows in docs class diagrams (#765, thanks @gpriaulx)
+- [Feature] Improved large docs class diagrams by adding panning and zooming (#718)
+- [Fix] Fixed links in docs class diagrams (#719)
+- [Feature] New extensions for `IModuleList` to make getting specific modules easier (#763)
+- [Feature] `If` module now exposes conditions and their modules (#761, thanks @ociaw)
+- [Fix] Fixed `BookSiteKeys.BookImage` references in the Velocity theme (#760, thanks @damccull)
+- [Feature] Improved the fakes in Wyam.Testing to allow for custom type conversions when needed
+- [Refactoring] `IExecutionContext.GetLink()` overloads now return the absolute URI if one is provided instead of trying to convert it to a relative link (#629)
+
+# 2.1.1
+
+- [Fix] Fixed a bug with early closure of HTTP response objects when validating links (#759)
+- [Fix] Fixed a regression bug with the BookSite recipe (#758)
+- [Feature] Adds support for `IgnoreConfigHash` to Cake.Wyam (#628)
+- [Fix] Fixed a bug in blog and docs recipes when the `Published` front matter contained an invalid date according to the culture (#611)
+- [Fix] Added favicon and empty override CSS output to docs theme so that settings `ValidateRelativeLinks` or `ValidateAbsoluteLinks` does not error (#607)
+
+# 2.1.0
+
+- **[Breaking Change]** No longer reads standard input by default, adds a new `--read-stdin` flag to turn on this behavior (#752)
+- [Fix] Blog posts in the docs recipe no longer require Author or Category metadata (#751)
+- [Feature] New `Markdown.PrependLinkRoot()` method to prepend a configured `LinkRoot` to all `Markdown` links (#735, #748, thanks @tbolon)
+- [Feature] New `MarkdownPrependLinkRoot` setting for the blog and docs recipes to turn on this behavior for Markdown documents (#735)
+- [Fix] Fix for tuples in generic type parameters in docs (#749)
+
+# 2.0.0
+
+- **[Breaking Change]** It's here! Wyam now runs on .NET Core 2.1 and the .NET Framework client is no longer distributed (at least initially).
+
+# 1.7.4
+
+- [Feature] Updated Buildalyzer which includes new features like honoring MSBuild constants
+
+# 1.7.3
+
+- [Fix] Fixes a regression with the new Razor module when using nested layouts
+- [Refactoring] Even better code signing (thanks @vcsjones) 
+
+# 1.7.2
+
+- [Fix] Updated Authenticode certificate
+
+# 1.7.1
+
+- [Fix] Fixed Authenticode signing of `wyam.exe`
+
+# 1.7.0
+
+- **[Breaking Change]**[Refactoring] New Razor parser based on ASP.NET Core 2.x (potentially breaking due to differences in Razor behavior such as tighter local variable scope)
+- [Refactoring] New integrated preview server based on ASP.NET Core 2.x (#300, thanks @RLittlesII)
+- [Feature] New `IExecutionContext.GetDocument()` overload to get an empty document while defining a source
+- [Fix] Updates `Tree` module placeholder function to set document source for the placeholder
+- [Feature] Adds `Keys.TreePlaceholder` metadata to indicate a placeholder tree document from `Tree` module
+- [Feature] Adds ability to configure blog title in docs recipe (#710, thanks @rschoenbach)
+
+# 1.6.0
+
+- [Refactoring] Big update to Buildalyzer which should make MSBuild-based project introspection for docs much more reliable
+- [Fix] Fixes a bug with docs `NoTitle` not working correctly
+- [Feature] Adds support for linking generic type arguments (#707, #709) 
+- [Fix] Fix for generic type argument names (#709)
+- [Fix] Fix for a bug when linking nullable types in docs recipe
+
+# 1.5.1
+
+- [Refactoring] Updated Cake.Wyam Cake reference to 0.28.0 (#701)
+- [Refactoring] Added NuGet repository link to packages (#705, #706, thanks @MaximRouiller)
+- [Feature] Better display and linking of nullable type in docs (#470)
+- [Fix] Fixes for generic type parameters in docs (#702, #610)
+
+# 1.5.0
+
+- **[Breaking Change]**[Refactoring] Removed the `TextGeneration` module since it's not .NET Core compatible
+- [Fix] Set `wyam.exe` to `x64` to avoid problems with `NuGet.Build.Tasks.dll`, libuv, and .NET Framework (#699)
+- [Feature] Updated Buildalyzer/MSBuild for `CodeAnalysis` modules, documentation project builds should work more reliably and on more project types now
+- [Refactoring] Updated version of lunrjs used by the `SearchIndex` module and related themes (#660, #661, thanks @SteveLowe)
+- [Fix] Added support for no trailing slash on edit link URL in `Docs` theme (#698, thanks @Foxtrek64)
+- [Fix] Fixed a JavaScript console error in the Stellar theme (#685, thanks @jdecarli)
+- [Fix] Removed unintentional Google Analytics code from Stellar theme (#684, thanks @jdecarli)
+- [Fix] Fixes for tag archive links in all themes when using a subdirectory (#590, #681, thanks @schulz3000)
+- [Fix] Fixed problems loading F# projects for code analysis and documentation generation (#687)
+- [Fix] Fixed some assembly loading problems with `System.Text.Encodings.Web` (#667)
+- [Feature] Added a `Sitemap` pipeline to the `Blog` recipe (#680, thanks @schulz3000)
+- [Feature] Added methods to specify additional word separators in the `AutoLink` module
+- [Feature] Added ability for `Docs` recipe to auto-link generic types (#674, #679, thanks @k94ll13nn3)
+- [Feature] Added an `--ignore-default-sources` option to ignore the NuGet gallery (#673, #662)
+- [Feature] Added `InsertPrefix()` and `InsertSuffix()` to `FilePath`
+- [Fix] Encodes type names when linking them in the `Docs` recipe (#674, #676, thanks @k94ll13nn3)
+- [Fix] Fixes some edge-case bugs with root-like paths and recipes (#675)
+- [Refactoring] Replaced Tabular with EPPlus and CsvHelper in tables modules (#672, thanks @MisinformedDNA)
+- [Refactoring] Replaced ImageProcessor with ImageSharp in `Image` module (#671, thanks @MisinformedDNA)
+- [Fix] Fix for hard coded blog path in some parts of `Docs` recipe (#670, thanks @tbolon)
+- [Fix] Fixed problems with month and day names in date strings (#655, thanks @jonasdoerr)
+
 # 1.4.1
 
 - [Fix] Fixed missing known extensions which should help make future version updates smoother (#652)

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
@@ -13,22 +14,26 @@ using JSPool;
 using Wyam.Common.Caching;
 using Wyam.Common.Configuration;
 using Wyam.Common.Documents;
+using Wyam.Common.Execution;
 using Wyam.Common.IO;
+using Wyam.Common.JavaScript;
 using Wyam.Common.Meta;
 using Wyam.Common.Modules;
-using Wyam.Common.Execution;
-using Wyam.Common.JavaScript;
+using Wyam.Common.Shortcodes;
 using Wyam.Common.Tracing;
 using Wyam.Common.Util;
 using Wyam.Core.Documents;
 using Wyam.Core.JavaScript;
 using Wyam.Core.Meta;
-using IJsEngine = Wyam.Common.JavaScript.IJsEngine;
+using Wyam.Core.Shortcodes;
 
 namespace Wyam.Core.Execution
 {
     internal class ExecutionContext : IExecutionContext, IDisposable
     {
+        // Cache the HttpMessageHandler (the HttpClient is really just a thin wrapper around this)
+        private static readonly HttpMessageHandler _httpMessageHandler = new HttpClientHandler();
+
         private readonly ExecutionPipeline _pipeline;
 
         private bool _disposed;
@@ -50,6 +55,8 @@ namespace Wyam.Core.Execution
         public IReadOnlyFileSystem FileSystem => Engine.FileSystem;
 
         public IReadOnlySettings Settings => Engine.Settings;
+
+        public IReadOnlyShortcodeCollection Shortcodes => Engine.Shortcodes;
 
         public IExecutionCache ExecutionCache => Engine.ExecutionCacheManager.Get(Module, Settings);
 
@@ -97,10 +104,20 @@ namespace Wyam.Core.Execution
 
         public Stream GetContentStream(string content = null) => Engine.ContentStreamFactory.GetStream(this, content);
 
+        public HttpClient CreateHttpClient() => CreateHttpClient(_httpMessageHandler);
+
+        public HttpClient CreateHttpClient(HttpMessageHandler handler) => new HttpClient(handler, false)
+        {
+            Timeout = TimeSpan.FromSeconds(60)
+        };
+
         // GetDocument
 
         public IDocument GetDocument(FilePath source, Stream stream, IEnumerable<KeyValuePair<string, object>> items = null, bool disposeStream = true) =>
             GetDocument((IDocument)null, source, stream, items, disposeStream);
+
+        public IDocument GetDocument(FilePath source, IEnumerable<KeyValuePair<string, object>> items = null) =>
+            GetDocument((IDocument)null, source, (Stream)null, items);
 
         public IDocument GetDocument(Stream stream, IEnumerable<KeyValuePair<string, object>> items = null, bool disposeStream = true) =>
             GetDocument((IDocument)null, stream, items, disposeStream);
@@ -188,14 +205,24 @@ namespace Wyam.Core.Execution
             return results;
         }
 
-        public IJsEnginePool GetJsEnginePool(
-            Action<IJsEngine> initializer = null,
+        public IJavaScriptEnginePool GetJavaScriptEnginePool(
+            Action<IJavaScriptEngine> initializer = null,
             int startEngines = 10,
             int maxEngines = 25,
             int maxUsagesPerEngine = 100,
             TimeSpan? engineTimeout = null) =>
-            new JsEnginePool(initializer, startEngines, maxEngines, maxUsagesPerEngine,
+            new JavaScriptEnginePool(
+                initializer,
+                startEngines,
+                maxEngines,
+                maxUsagesPerEngine,
                 engineTimeout ?? TimeSpan.FromSeconds(5));
+
+        public IShortcodeResult GetShortcodeResult(string content, IEnumerable<KeyValuePair<string, object>> metadata = null)
+            => GetShortcodeResult(content == null ? null : GetContentStream(content), metadata);
+
+        public IShortcodeResult GetShortcodeResult(Stream content, IEnumerable<KeyValuePair<string, object>> metadata = null)
+            => new ShortcodeResult(content, metadata);
 
         // IMetadata
 
@@ -206,8 +233,6 @@ namespace Wyam.Core.Execution
         public int Count => Settings.Count;
 
         public bool ContainsKey(string key) => Settings.ContainsKey(key);
-
-        public bool TryGetValue(string key, out object value) => Settings.TryGetValue(key, out value);
 
         public object this[string key] => Settings[key];
 
@@ -224,6 +249,10 @@ namespace Wyam.Core.Execution
         public T Get<T>(string key) => Settings.Get<T>(key);
 
         public T Get<T>(string key, T defaultValue) => Settings.Get(key, defaultValue);
+
+        public bool TryGetValue(string key, out object value) => Settings.TryGetValue(key, out value);
+
+        public bool TryGetValue<T>(string key, out T value) => Settings.TryGetValue<T>(key, out value);
 
         public IMetadata GetMetadata(params string[] keys) => Settings.GetMetadata(keys);
     }

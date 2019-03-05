@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Shouldly;
 using Wyam.Common.Execution;
 using Wyam.Common.Meta;
 using Wyam.Common.Util;
@@ -155,6 +156,56 @@ namespace Wyam.Common.Tests.Util
 
                 // Then
                 Assert.That(result, Is.EqualTo(CultureInfo.GetCultureInfo("en-GB")));
+            }
+        }
+
+        public class ToShortDateStringTests : DateTimeCultureExtensionsFixture
+        {
+            [SetUp]
+            public void SetThreadCulture()
+            {
+                CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
+            }
+
+            [Test]
+            public void IncludesShortNameOfFrenchDayAndMonth()
+            {
+                // Given
+                TestExecutionContext context = new TestExecutionContext();
+                CultureInfo culture = (CultureInfo)CultureInfo.GetCultureInfo("fr-FR").Clone();
+                culture.DateTimeFormat.ShortDatePattern = "ddd MMM";
+                context.Settings[Keys.DateTimeDisplayCulture] = culture;
+                DateTime dateTime = new DateTime(2000, 3, 1);
+
+                // When
+                string result = dateTime.ToShortDateString(context);
+
+                // Then
+                result.ShouldBe("mer. mars", StringCompareShould.IgnoreCase);
+            }
+        }
+
+        public class ToLongDateStringTests : DateTimeCultureExtensionsFixture
+        {
+            [SetUp]
+            public void SetThreadCulture()
+            {
+                CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
+            }
+
+            [Test]
+            public void IncludesNameOfGermanDayAndMonth()
+            {
+                // Given
+                TestExecutionContext context = new TestExecutionContext();
+                context.Settings[Keys.DateTimeDisplayCulture] = CultureInfo.GetCultureInfo("de-DE");
+                DateTime dateTime = new DateTime(2000, 3, 1);
+
+                // When
+                string result = dateTime.ToLongDateString(context);
+
+                // Then
+                Assert.That(result, Is.EqualTo("Mittwoch, 1. März 2000"));
             }
         }
     }

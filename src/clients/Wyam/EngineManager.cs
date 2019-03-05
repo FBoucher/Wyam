@@ -47,7 +47,7 @@ namespace Wyam
 
             // Set folders
             Engine.FileSystem.RootPath = _configOptions.RootPath;
-            if (_configOptions.InputPaths != null && _configOptions.InputPaths.Count > 0)
+            if (_configOptions.InputPaths?.Count > 0)
             {
                 // Clear existing default paths if new ones are set
                 // and reverse the inputs so the last one is first to match the semantics of multiple occurrence single options
@@ -74,6 +74,7 @@ namespace Wyam
             Configurator.PackageInstaller.UpdatePackages = _configOptions.UpdatePackages;
             Configurator.PackageInstaller.UseLocalPackagesFolder = _configOptions.UseLocalPackages;
             Configurator.PackageInstaller.UseGlobalPackageSources = _configOptions.UseGlobalSources;
+            Configurator.PackageInstaller.IgnoreDefaultSources = _configOptions.IgnoreDefaultSources;
             if (_configOptions.PackagesPath != null)
             {
                 Configurator.PackageInstaller.PackagesPath = _configOptions.PackagesPath;

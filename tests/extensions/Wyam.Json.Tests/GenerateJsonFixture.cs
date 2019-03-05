@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using NSubstitute;
 using NUnit.Framework;
+using Shouldly;
 using Wyam.Common.Documents;
 using Wyam.Common.Meta;
 using Wyam.Common.Execution;
@@ -75,7 +73,7 @@ namespace Wyam.Json.Tests
                 IList<IDocument> results = generateJson.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { _jsonContent }));
+                results.Select(x => x.Content).Single().ShouldBe(_jsonContent, StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
@@ -90,7 +88,7 @@ namespace Wyam.Json.Tests
                 IList<IDocument> results = generateJson.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { _jsonContent }));
+                results.Select(x => x.Content).Single().ShouldBe(_jsonContent, StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
@@ -108,7 +106,7 @@ namespace Wyam.Json.Tests
                 IList<IDocument> results = generateJson.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { _jsonContent }));
+                results.Select(x => x.Content).Single().ShouldBe(_jsonContent, StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
@@ -126,9 +124,8 @@ namespace Wyam.Json.Tests
                 IList<IDocument> results = generateJson.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(
-                    results.Select(x => x.First(y => y.Key == "OutputKey")),
-                    Is.EquivalentTo(new[] { new KeyValuePair<string, object>("OutputKey", _jsonContent) }));
+                results.Select(x => x.First(y => y.Key == "OutputKey").Value).Single().ToString()
+                    .ShouldBe(_jsonContent, StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
@@ -141,13 +138,16 @@ namespace Wyam.Json.Tests
                     { "JsonObject", _jsonObject }
                 });
                 GenerateJson generateJson = new GenerateJson("JsonObject").WithIndenting(false);
-                string nonIndentedJsonContent = _jsonContent.Replace(" ", string.Empty).Replace("\r\n", string.Empty);
+                string nonIndentedJsonContent = _jsonContent
+                    .Replace(" ", string.Empty)
+                    .Replace("\r\n", string.Empty)
+                    .Replace("\n", string.Empty);
 
                 // When
                 IList<IDocument> results = generateJson.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { nonIndentedJsonContent }));
+                results.Select(x => x.Content).Single().ShouldBe(nonIndentedJsonContent, StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
@@ -165,7 +165,7 @@ namespace Wyam.Json.Tests
                 IList<IDocument> results = generateJson.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { _camelCaseJsonContent }));
+                results.Select(x => x.Content).Single().ShouldBe(_camelCaseJsonContent, StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
@@ -184,9 +184,11 @@ namespace Wyam.Json.Tests
                 IList<IDocument> results = generateJson.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { @"{
+                results.Select(x => x.Content).Single().ShouldBe(
+                    @"{
   ""Bar"": ""baz""
-}" }));
+}",
+                    StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
@@ -205,9 +207,11 @@ namespace Wyam.Json.Tests
                 IList<IDocument> results = generateJson.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { @"{
+                results.Select(x => x.Content).Single().ShouldBe(
+                    @"{
   ""bar"": ""baz""
-}" }));
+}",
+                    StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
@@ -225,10 +229,12 @@ namespace Wyam.Json.Tests
                 // When
                 IList<IDocument> results = generateJson.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
-                // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { @"{
+            // Then
+                results.Select(x => x.Content).Single().ShouldBe(
+                @"{
   ""Bar"": ""baz""
-}" }));
+}",
+                StringCompareShould.IgnoreLineEndings);
             }
 
             [Test]
@@ -247,9 +253,11 @@ namespace Wyam.Json.Tests
                 IList<IDocument> results = generateJson.Execute(new[] { document }, context).ToList();  // Make sure to materialize the result list
 
                 // Then
-                Assert.That(results.Select(x => x.Content), Is.EquivalentTo(new[] { @"{
+                results.Select(x => x.Content).Single().ShouldBe(
+                    @"{
   ""bar"": ""baz""
-}" }));
+}",
+                    StringCompareShould.IgnoreLineEndings);
             }
         }
     }

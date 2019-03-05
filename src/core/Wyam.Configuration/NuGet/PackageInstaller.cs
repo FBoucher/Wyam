@@ -47,16 +47,18 @@ namespace Wyam.Configuration.NuGet
 
         public bool UseGlobalPackageSources { get; set; }
 
+        public bool IgnoreDefaultSources { get; set; }
+
         public DirectoryPath PackagesPath
         {
-            get { return _packagesPath; }
+            get
+            {
+                return _packagesPath;
+            }
+
             set
             {
-                if (value == null)
-                {
-                    throw new ArgumentNullException(nameof(PackagesPath));
-                }
-                _packagesPath = value;
+                _packagesPath = value ?? throw new ArgumentNullException(nameof(PackagesPath));
             }
         }
 
@@ -155,6 +157,12 @@ namespace Wyam.Configuration.NuGet
                     _sourceRepositories.AddGlobalDefaults();
                 }
 
+                // Add the default package sources
+                if (!IgnoreDefaultSources)
+                {
+                    _sourceRepositories.AddDefaultPackageSources();
+                }
+
                 // Get the local repository
                 SourceRepository localRepository = _sourceRepositories.CreateRepository(packagesPath.FullPath);
 
@@ -188,7 +196,7 @@ namespace Wyam.Configuration.NuGet
                     {
                         Trace.Verbose($"Exception while resolving package versions: {ex.Message}");
                         Trace.Warning("Error while resolving package versions, attempting without remote repositories");
-                        installationRepositories = new[] {localRepository};
+                        installationRepositories = new[] { localRepository };
                         ResolveVersions(localRepository, Array.Empty<SourceRepository>());
                     }
 

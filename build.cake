@@ -1,5 +1,8 @@
+// The following environment variables need to be set for Build target:
+// SIGNTOOL (to sign the executable)
+
 // The following environment variables need to be set for Publish target:
-// NUGET_API_KEY
+// WYAM_NUGET_API_KEY
 // WYAM_GITHUB_TOKEN
 
 // The following environment variables need to be set for Publish-MyGet target:
@@ -18,11 +21,15 @@
 // - Run a Publish build with Cake (`build -target Publish`)
 // - No need to add a version tag to the repo - added by GitHub on publish
 // - Switch back to develop branch
+// - Add a blog post to Wyam.Web about the release
 // - Run a build on Wyam.Web from CI to verify final release (first make sure NuGet Gallery has updated packages by searching for "wyam")
 
 #addin "Cake.FileHelpers"
 #addin "Octokit"
-#addin "Cake.Squirrel"
+#tool "nuget:?package=NUnit.ConsoleRunner&version=3.7.0"
+#tool "nuget:?package=NuGet.CommandLine&version=4.9.2"
+#tool "AzurePipelines.TestLogger&version=1.0.2"
+
 using Octokit;
 
 //////////////////////////////////////////////////////////////////////
@@ -39,14 +46,20 @@ var configuration = Argument("configuration", "Release");
 var isLocal = BuildSystem.IsLocalBuild;
 var isRunningOnUnix = IsRunningOnUnix();
 var isRunningOnWindows = IsRunningOnWindows();
-var isRunningOnAppVeyor = AppVeyor.IsRunningOnAppVeyor;
-var isPullRequest = AppVeyor.Environment.PullRequest.IsPullRequest;
-var buildNumber = AppVeyor.Environment.Build.Number;
+var isRunningOnBuildServer = !string.IsNullOrEmpty(EnvironmentVariable("AGENT_NAME")); // See https://github.com/cake-build/cake/issues/1684#issuecomment-397682686
+var isPullRequest = !string.IsNullOrWhiteSpace(EnvironmentVariable("SYSTEM_PULLREQUEST_PULLREQUESTID"));  // See https://github.com/cake-build/cake/issues/2149
+var buildNumber = TFBuild.Environment.Build.Number.Replace('.', '-');
+var branch = TFBuild.Environment.Repository.Branch;
 
 var releaseNotes = ParseReleaseNotes("./ReleaseNotes.md");
 
 var version = releaseNotes.Version.ToString();
 var semVersion = version + (isLocal ? string.Empty : string.Concat("-build-", buildNumber));
+
+var msBuildSettings = new DotNetCoreMSBuildSettings()
+    .WithProperty("Version", semVersion)
+    .WithProperty("AssemblyVersion", version)
+    .WithProperty("FileVersion", version);
 
 var buildDir = Directory("./src/clients/Wyam/bin") + Directory(configuration);
 var buildResultDir = Directory("./build");
@@ -93,60 +106,63 @@ Task("Restore-Packages")
     .IsDependentOn("Patch-Assembly-Info")
     .Does(() =>
     {
-        NuGetRestore("./Wyam.sln");
-
-        // Need to pass version to restore so assets file is updated
-        // See https://github.com/NuGet/Home/issues/4790
-        // and https://github.com/NuGet/Home/issues/5371
-        MSBuild("./Wyam.sln", new MSBuildSettings()
-            .SetConfiguration(configuration)
-            .WithTarget("restore")
-            .WithProperty("Version", $"\"{semVersion}\"")
-            .WithProperty("WarningLevel", "0")
-            .SetMaxCpuCount(0)
-            .SetVerbosity(Verbosity.Minimal)
-        );
+        DotNetCoreRestore("./Wyam.sln", new DotNetCoreRestoreSettings
+        {
+            MSBuildSettings = msBuildSettings
+        });
     });
 
 Task("Build")
     .IsDependentOn("Restore-Packages")
     .Does(() =>
     {
-        MSBuild("./Wyam.sln", new MSBuildSettings()
-            .SetConfiguration(configuration)
-            .SetMaxCpuCount(0)
-            .SetVerbosity(Verbosity.Minimal)
-            .WithProperty("WarningLevel", "0")  
-        );
+        DotNetCoreBuild("./Wyam.sln", new DotNetCoreBuildSettings
+        {
+            Configuration = configuration,
+            NoRestore = true,
+            MSBuildSettings = msBuildSettings
+        });
+    });
+
+Task("Publish-Client")
+    .IsDependentOn("Build")
+    .Does(() =>
+    {
+        DotNetCorePublish("./src/clients/Wyam/Wyam.csproj", new DotNetCorePublishSettings
+        {
+            Configuration = configuration,
+            NoBuild = true,
+            NoRestore = true
+        });
     });
 
 Task("Run-Unit-Tests")
     .IsDependentOn("Build")
-    .Does(() =>
+    .DoesForEach(GetFiles("./tests/**/*.csproj"), project =>
     {
         DotNetCoreTestSettings testSettings = new DotNetCoreTestSettings()
         {
             NoBuild = true,
-            ArgumentCustomization = x => x.Append("--no-restore"),
+            NoRestore = true,
             Configuration = configuration
         };
-        if (isRunningOnAppVeyor)
+        if (isRunningOnBuildServer)
         {
-            testSettings.Filter = "TestCategory!=ExcludeFromAppVeyor";
+            testSettings.Filter = "TestCategory!=ExcludeFromBuildServer";
+            testSettings.Logger = "AzurePipelines";
+            testSettings.TestAdapterPath = GetDirectories($"./tools/AzurePipelines.TestLogger.*/contentFiles/any/any").First();
         }
 
-        foreach (var project in GetFiles("./tests/**/*.csproj"))
-        {
-            Information($"Running tests in {project}");
-            DotNetCoreTest(MakeAbsolute(project).ToString(), testSettings);
-        }
-    });
+        Information($"Running tests in {project}");
+        DotNetCoreTest(MakeAbsolute(project).ToString(), testSettings);
+    })
+    .DeferOnError();
 
 Task("Copy-Files")
-    .IsDependentOn("Build")
+    .IsDependentOn("Publish-Client")
     .Does(() =>
     {
-        CopyDirectory(buildDir.Path.FullPath + "/net462", binDir);
+        CopyDirectory(buildDir.Path.FullPath + "/netcoreapp2.1/publish", binDir);
         CopyFiles(new FilePath[] { "LICENSE", "README.md", "ReleaseNotes.md" }, binDir);
     });
 
@@ -161,27 +177,30 @@ Task("Zip-Files")
 
 Task("Create-Library-Packages")
     .IsDependentOn("Build")
+    .IsDependentOn("Publish-Client")
     .Does(() =>
     {        
         // Get the set of projects to package
         List<FilePath> projects = new List<FilePath>(GetFiles("./src/**/*.csproj"));
-
-        // Wyam client is packaged separately
-        projects.RemoveAll(x => x.GetDirectory().GetDirectoryName() == "Wyam");
         
         // Package all nuspecs
         foreach (var project in projects)
         {
-            MSBuild(project, new MSBuildSettings()
-                .SetConfiguration(configuration)
-                .WithTarget("pack")
-                .WithProperty("PackageOutputPath", $"\"{MakeAbsolute(nugetRoot)}\"")
-                .WithProperty("PackageVersion", $"\"{semVersion}\"")
-            );
+            DotNetCorePack(
+                MakeAbsolute(project).ToString(),
+                new DotNetCorePackSettings
+                {
+                    Configuration = configuration,
+                    NoBuild = true,
+                    NoRestore = true,
+                    OutputDirectory = nugetRoot,
+                    MSBuildSettings = msBuildSettings
+                });
         }
     });
 
 Task("Create-Theme-Packages")
+    .WithCriteria(() => isRunningOnWindows)
     .Does(() =>
     {        
         // All themes must be under the themes folder in a NameOfRecipe/NameOfTheme subfolder
@@ -198,7 +217,7 @@ Task("Create-Theme-Packages")
                 Version = semVersion,
                 Title = id,
                 Authors = new [] { "Dave Glick" },
-                Owners = new [] { "Dave Glick" },
+                Owners = new [] { "Dave Glick", "wyam" },
                 Description = "A theme for the Wyam " + segments[segments.Length - 2] + " recipe.",
                 ProjectUrl = new Uri("https://wyam.io"),
                 IconUrl = new Uri("https://wyam.io/assets/img/logo-square-64.png"),
@@ -207,6 +226,10 @@ Task("Create-Theme-Packages")
                 Tags = new [] { "Wyam", "Theme", "Static", "StaticContent", "StaticSite" },
                 RequireLicenseAcceptance = false,
                 Symbols = false,
+                Repository = new NuGetRepository {
+                    Type = "git",
+                    Url = "https://github.com/Wyamio/Wyam.git"
+                },
                 Files = new []
                 {
                     new NuSpecContent 
@@ -223,6 +246,7 @@ Task("Create-Theme-Packages")
     
 Task("Create-AllModules-Package")
     .IsDependentOn("Build")
+    .WithCriteria(() => isRunningOnWindows)
     .Does(() =>
     {        
         var nuspec = GetFiles("./src/extensions/Wyam.All/*.nuspec").FirstOrDefault();
@@ -255,7 +279,8 @@ Task("Create-AllModules-Package")
     });
     
 Task("Create-Tools-Package")
-    .IsDependentOn("Build")
+    .IsDependentOn("Publish-Client")
+    .WithCriteria(() => isRunningOnWindows)
     .Does(() =>
     {        
         var nuspec = GetFiles("./src/clients/Wyam/*.nuspec").FirstOrDefault();
@@ -263,7 +288,7 @@ Task("Create-Tools-Package")
         {            
             throw new InvalidOperationException("Could not find tools nuspec.");
         }
-        var pattern = string.Format("bin\\{0}\\**\\*", configuration);  // This is needed to get around a Mono scripting issue (see #246, #248, #249)
+        var pattern = string.Format("bin\\{0}\\netcoreapp2.1\\publish\\**\\*", configuration);  // This is needed to get around a Mono scripting issue (see #246, #248, #249)
         NuGetPack(nuspec, new NuGetPackSettings
         {
             Version = semVersion,
@@ -275,7 +300,7 @@ Task("Create-Tools-Package")
                 new NuSpecContent 
                 { 
                     Source = pattern,
-                    Target = "tools"
+                    Target = "tools\\netcoreapp2.1"
                 } 
             }
         });
@@ -283,6 +308,7 @@ Task("Create-Tools-Package")
 
 Task("Create-Chocolatey-Package")
     .IsDependentOn("Copy-Files")
+    .WithCriteria(() => isRunningOnWindows)
     .Does(() => {
         var nuspecFile = GetFiles("./src/clients/Chocolatey/*.nuspec").FirstOrDefault();
         ChocolateyPack(nuspecFile, new ChocolateyPackSettings {
@@ -296,6 +322,8 @@ Task("Publish-MyGet")
     .IsDependentOn("Create-Packages")
     .WithCriteria(() => !isLocal)
     .WithCriteria(() => !isPullRequest)
+    .WithCriteria(() => isRunningOnWindows)
+    .WithCriteria(() => branch == "develop")
     .Does(() =>
     {
         // Resolve the API key.
@@ -310,7 +338,8 @@ Task("Publish-MyGet")
             NuGetPush(nupkg, new NuGetPushSettings 
             {
                 Source = "https://www.myget.org/F/wyam/api/v2/package",
-                ApiKey = apiKey
+                ApiKey = apiKey,
+                Timeout = TimeSpan.FromSeconds(600)
             });
         }
     });
@@ -318,10 +347,11 @@ Task("Publish-MyGet")
 Task("Publish-Packages")
     .IsDependentOn("Create-Packages")
     .WithCriteria(() => isLocal)
+    .WithCriteria(() => isRunningOnWindows)
     // TODO: Add criteria that makes sure this is the master branch
     .Does(() =>
     {
-        var apiKey = EnvironmentVariable("NUGET_API_KEY");
+        var apiKey = EnvironmentVariable("WYAM_NUGET_API_KEY");
         if (string.IsNullOrEmpty(apiKey))
         {
             throw new InvalidOperationException("Could not resolve NuGet API key.");
@@ -332,7 +362,7 @@ Task("Publish-Packages")
             NuGetPush(nupkg, new NuGetPushSettings 
             {
                 ApiKey = apiKey,
-                Source = "https://nuget.org/api/v2/package"
+                Source = "https://api.nuget.org/v3/index.json"
             });
         }
     });
@@ -340,6 +370,7 @@ Task("Publish-Packages")
 Task("Publish-Chocolatey-Package")
     .IsDependentOn("Create-Chocolatey-Package")
     .WithCriteria(()=> isLocal)
+    .WithCriteria(() => isRunningOnWindows)
     .Does(()=> 
     {
         var chocolateyApiKey = EnvironmentVariable("CHOCOLATEY_API_KEY");
@@ -360,6 +391,7 @@ Task("Publish-Chocolatey-Package")
 Task("Publish-Release")
     .IsDependentOn("Zip-Files")
     .WithCriteria(() => isLocal)
+    .WithCriteria(() => isRunningOnWindows)
     // TODO: Add criteria that makes sure this is the master branch
     .Does(() =>
     {
@@ -388,22 +420,6 @@ Task("Publish-Release")
         }
     });
     
-Task("Update-AppVeyor-Build-Number")
-    .WithCriteria(() => isRunningOnAppVeyor)
-    .Does(() =>
-    {
-        AppVeyor.UpdateBuildVersion(semVersion);
-    });
-
-Task("Upload-AppVeyor-Artifacts")
-    .IsDependentOn("Zip-Files")
-    .WithCriteria(() => isRunningOnAppVeyor)
-    .Does(() =>
-    {
-        var artifact = buildResultDir + File(zipFile);
-        AppVeyor.UploadArtifact(artifact);
-    });
-    
 //////////////////////////////////////////////////////////////////////
 // TASK TARGETS
 //////////////////////////////////////////////////////////////////////
@@ -428,11 +444,9 @@ Task("Publish")
     .IsDependentOn("Publish-Chocolatey-Package")
     .IsDependentOn("Publish-Release");
     
-Task("AppVeyor")
+Task("BuildServer")
     .IsDependentOn("Run-Unit-Tests")
-    .IsDependentOn("Publish-MyGet")
-    .IsDependentOn("Update-AppVeyor-Build-Number")
-    .IsDependentOn("Upload-AppVeyor-Artifacts");
+    .IsDependentOn("Publish-MyGet");
 
 //////////////////////////////////////////////////////////////////////
 // EXECUTION

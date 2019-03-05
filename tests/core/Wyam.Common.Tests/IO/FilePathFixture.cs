@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Wyam.Common.IO;
 using Wyam.Testing;
+using Wyam.Testing.Attributes;
 
 namespace Wyam.Common.Tests.IO
 {
@@ -84,10 +85,8 @@ namespace Wyam.Common.Tests.IO
             [TestCase(@"a\b\c", "a/b/c")]
             [TestCase("foo.txt", "foo.txt")]
             [TestCase("foo", "foo")]
-#if !UNIX
-            [TestCase(@"c:\a\b\c", "a/b/c")]
-            [TestCase("c:/a/b/c", "a/b/c")]
-#endif
+            [WindowsTestCase(@"c:\a\b\c", "a/b/c")]
+            [WindowsTestCase("c:/a/b/c", "a/b/c")]
             public void ShouldReturnRootRelativePath(string fullPath, string expected)
             {
                 // Given
@@ -106,10 +105,8 @@ namespace Wyam.Common.Tests.IO
             [TestCase(@"a\b\c")]
             [TestCase("foo.txt")]
             [TestCase("foo")]
-#if !UNIX
-            [TestCase(@"c:\a\b\c")]
-            [TestCase("c:/a/b/c")]
-#endif
+            [WindowsTestCase(@"c:\a\b\c")]
+            [WindowsTestCase("c:/a/b/c")]
             public void ShouldReturnSelfForExplicitRelativePath(string fullPath)
             {
                 // Given
@@ -171,6 +168,71 @@ namespace Wyam.Common.Tests.IO
 
                 // Then
                 Assert.AreEqual(expected, path.ToString());
+            }
+        }
+
+        public class InsertSuffixTests : FilePathFixture
+        {
+            [Test]
+            public void ShouldThrowIfSuffixIsNull()
+            {
+                // Given
+                FilePath path = new FilePath("temp/hello.txt");
+
+                // When
+                TestDelegate test = () => path.InsertSuffix(null);
+
+                // Then
+                Assert.Throws<ArgumentNullException>(test);
+            }
+
+            [TestCase("temp/hello.txt", "123", "temp/hello123.txt")]
+            [TestCase("/hello.txt", "123", "/hello123.txt")]
+            [TestCase("temp/hello", "123", "temp/hello123")]
+            [TestCase("temp/hello.txt.dat", "123", "temp/hello.txt123.dat")]
+            public void CanInsertSuffixToPath(string path, string suffix, string expected)
+            {
+                // Given
+                FilePath filePath = new FilePath(path);
+
+                // When
+                filePath = filePath.InsertSuffix(suffix);
+
+                // Then
+                Assert.AreEqual(expected, filePath.FullPath);
+            }
+        }
+
+        public class InserPrefixTests : FilePathFixture
+        {
+            [Test]
+            public void ShouldThrowIfPRefixIsNull()
+            {
+                // Given
+                FilePath path = new FilePath("temp/hello.txt");
+
+                // When
+                TestDelegate test = () => path.InsertPrefix(null);
+
+                // Then
+                Assert.Throws<ArgumentNullException>(test);
+            }
+
+            [TestCase("temp/hello.txt", "123", "temp/123hello.txt")]
+            [TestCase("/hello.txt", "123", "/123hello.txt")]
+            [TestCase("hello.txt", "123", "123hello.txt")]
+            [TestCase("temp/hello", "123", "temp/123hello")]
+            [TestCase("temp/hello.txt.dat", "123", "temp/123hello.txt.dat")]
+            public void CanInsertPrefixToPath(string path, string prefix, string expected)
+            {
+                // Given
+                FilePath filePath = new FilePath(path);
+
+                // When
+                filePath = filePath.InsertPrefix(prefix);
+
+                // Then
+                Assert.AreEqual(expected, filePath.FullPath);
             }
         }
 
@@ -265,9 +327,7 @@ namespace Wyam.Common.Tests.IO
         public class CollapseTests : FilePathFixture
         {
             [TestCase("/a/b/c/../d/baz.txt", "/a/b/d/baz.txt")]
-#if !UNIX
-            [TestCase("c:/a/b/c/../d/baz.txt", "c:/a/b/d/baz.txt")]
-#endif
+            [WindowsTestCase("c:/a/b/c/../d/baz.txt", "c:/a/b/d/baz.txt")]
             public void ShouldCollapse(string fullPath, string expected)
             {
                 // Given

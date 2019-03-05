@@ -30,6 +30,18 @@ namespace Wyam.Sass
     ///     WriteFiles(".css")
     /// );
     /// </code>
+    /// Another common pattern is building Bootstrap from npm sitting alongside your "input" folder in a "node_modules" folder. This can be accomplished with
+    /// a pipeline that looks similar to the following. It loads the Bootstrap Sass files that don't begin with "_" from the Bootstrap node module and then
+    /// outputs the results to a specific path under your output folder (in this case, "assets/css/bootstrap.css").
+    /// <code>
+    /// Pipelines.Add("Bootstrap",
+    ///     ReadFiles("../node_modules/bootstrap/scss/**/{!_,}*.scss"),
+    ///     Sass()
+    ///         .WithCompactOutputStyle(),
+    ///     WriteFiles((doc, ctx) => $"assets/css/{doc.String(Keys.RelativeFilePath)}")
+    ///         .UseWriteMetadata(false)
+    /// );
+    /// </code>
     /// </example>
     /// <metadata cref="Keys.SourceFilePath" usage="Input">The default key to use for determining the input document path.</metadata>
     /// <metadata cref="Keys.RelativeFilePath" usage="Input">If <see cref="Keys.SourceFilePath"/> is unavailable, this is used to guess at the source file path.</metadata>
@@ -38,8 +50,9 @@ namespace Wyam.Sass
     /// <category>Templates</category>
     public class Sass : IModule
     {
+        private readonly List<DirectoryPath> _includePaths = new List<DirectoryPath>();
         private DocumentConfig _inputPath = DefaultInputPath;
-        private readonly List<string> _includePaths = new List<string>();
+        private Func<string, string> _importPathFunc = null;
         private bool _includeSourceComments = false;
         private ScssOutputStyle _outputStyle = ScssOutputStyle.Compact;
         private bool _generateSourceMap = false;
@@ -63,9 +76,20 @@ namespace Wyam.Sass
         /// </summary>
         /// <param name="paths">The paths to include.</param>
         /// <returns>The current instance.</returns>
-        public Sass WithIncludePaths(IEnumerable<string> paths)
+        public Sass WithIncludePaths(params DirectoryPath[] paths)
         {
             _includePaths.AddRange(paths);
+            return this;
+        }
+
+        /// <summary>
+        /// A delegate that processes the path in <c>@import</c> statements.
+        /// </summary>
+        /// <param name="importPathFunc">A delegate that should return the correct import path for a given import.</param>
+        /// <returns>The current instance.</returns>
+        public Sass WithImportPath(Func<string, string> importPathFunc)
+        {
+            _importPathFunc = importPathFunc;
             return this;
         }
 
@@ -135,13 +159,14 @@ namespace Wyam.Sass
         /// <inheritdoc />
         public IEnumerable<IDocument> Execute(IReadOnlyList<IDocument> inputs, IExecutionContext context)
         {
-            return inputs.AsParallel()
+            return inputs
+                .AsParallel()
                 .SelectMany(context, input =>
                 {
                     Trace.Verbose($"Processing Sass for {input.SourceString()}");
 
                     FilePath inputPath = _inputPath.Invoke<FilePath>(input, context);
-                    if (inputPath == null || !inputPath.IsAbsolute)
+                    if (inputPath?.IsAbsolute != true)
                     {
                         inputPath = context.FileSystem.GetInputFile(new FilePath(Path.GetRandomFileName())).Path;
                         Trace.Warning($"No input path found for document {input.SourceString()}, using {inputPath.FileName.FullPath}");
@@ -150,7 +175,7 @@ namespace Wyam.Sass
                     string content = input.Content;
 
                     // Sass conversion
-                    FileImporter importer = new FileImporter(context.FileSystem);
+                    FileImporter importer = new FileImporter(context.FileSystem, _importPathFunc);
                     ScssOptions options = new ScssOptions
                     {
                         OutputStyle = _outputStyle,
@@ -159,7 +184,11 @@ namespace Wyam.Sass
                         InputFile = inputPath.FullPath,
                         TryImport = importer.TryImport
                     };
-                    options.IncludePaths.AddRange(_includePaths);
+                    options.IncludePaths.AddRange(
+                        _includePaths
+                            .Where(x => x != null)
+                            .Select(x => x.IsAbsolute ? x.FullPath : context.FileSystem.GetContainingInputPath(x)?.Combine(x)?.FullPath)
+                            .Where(x => x != null));
                     ScssResult result = Scss.ConvertToCss(content, options);
 
                     // Process the result
@@ -172,8 +201,8 @@ namespace Wyam.Sass
                         context.GetContentStream(result.Css ?? string.Empty),
                         new MetadataItems
                         {
-                            {Keys.RelativeFilePath, cssPath},
-                            {Keys.WritePath, cssPath}
+                            { Keys.RelativeFilePath, cssPath },
+                            { Keys.WritePath, cssPath }
                         });
 
                     IDocument sourceMapDocument = null;
@@ -185,12 +214,12 @@ namespace Wyam.Sass
                             context.GetContentStream(result.SourceMap),
                             new MetadataItems
                             {
-                                {Keys.RelativeFilePath, sourceMapPath},
-                                {Keys.WritePath, sourceMapPath}
+                                { Keys.RelativeFilePath, sourceMapPath },
+                                { Keys.WritePath, sourceMapPath }
                             });
                     }
 
-                    return new[] {cssDocument, sourceMapDocument};
+                    return new[] { cssDocument, sourceMapDocument };
                 })
                 .Where(x => x != null);
         }

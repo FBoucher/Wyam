@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -24,7 +25,7 @@ namespace Wyam.Core.IO.Globbing
         /// <param name="directory">The directory to search.</param>
         /// <param name="patterns">The globbing pattern(s) to use.</param>
         /// <returns>Files that match the globbing pattern(s).</returns>
-        public static IEnumerable<IFile> GetFiles(IDirectory directory, params string[] patterns) => 
+        public static IEnumerable<IFile> GetFiles(IDirectory directory, params string[] patterns) =>
             GetFiles(directory, (IEnumerable<string>)patterns);
 
         /// <summary>
@@ -37,7 +38,7 @@ namespace Wyam.Core.IO.Globbing
         {
             // Initially based on code from Reliak.FileSystemGlobbingExtensions (https://github.com/reliak/Reliak.FileSystemGlobbingExtensions)
 
-            Matcher matcher = new Matcher(StringComparison.Ordinal);
+            Matcher matcher = new Matcher(directory.IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase);
 
             // Expand braces
             IEnumerable<string> expandedPatterns = patterns
@@ -54,7 +55,7 @@ namespace Wyam.Core.IO.Globbing
                     .Replace("\\", "/"); // Normalize slashes
 
                 // No support for absolute paths
-                if (System.IO.Path.IsPathRooted(finalPattern))
+                if (Path.IsPathRooted(finalPattern))
                 {
                     throw new ArgumentException($"Rooted globbing patterns are not supported ({expandedPattern})", nameof(patterns));
                 }

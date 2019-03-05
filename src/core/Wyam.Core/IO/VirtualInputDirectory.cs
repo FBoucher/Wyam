@@ -15,10 +15,6 @@ namespace Wyam.Core.IO
 
         public VirtualInputDirectory(FileSystem fileSystem, DirectoryPath path)
         {
-            if (fileSystem == null)
-            {
-                throw new ArgumentNullException(nameof(fileSystem));
-            }
             if (path == null)
             {
                 throw new ArgumentNullException(nameof(path));
@@ -28,7 +24,7 @@ namespace Wyam.Core.IO
                 throw new ArgumentException("Virtual input paths should always be relative", nameof(path));
             }
 
-            _fileSystem = fileSystem;
+            _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
             _path = path;
         }
 
@@ -126,6 +122,20 @@ namespace Wyam.Core.IO
         /// <c>true</c> if this directory exists at one of the input paths; otherwise, <c>false</c>.
         /// </value>
         public bool Exists => GetExistingDirectories().Any();
+
+        /// <summary>
+        /// Returns <c>true</c> if any of the input paths are case sensitive.
+        /// </summary>
+        /// <remarks>
+        /// When dealing with virtual input directories that could be comprised of multiple
+        /// file systems with different case sensitivity, it's safer to treat the
+        /// virtual file system as case-sensitive if any of the underlying file systems
+        /// are case-sensitive. Otherwise, if we treated it as case-insensitive when
+        /// one of the file systems was actually case-sensitive we would get false-positive
+        /// results when assuming if directories and files in that file system existed
+        /// (for example, in the globber).
+        /// </remarks>
+        public bool IsCaseSensitive => GetExistingDirectories().Any(x => x.IsCaseSensitive);
 
         private IEnumerable<IDirectory> GetExistingDirectories() =>
             _fileSystem.InputPaths

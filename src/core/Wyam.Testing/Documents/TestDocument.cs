@@ -16,7 +16,7 @@ namespace Wyam.Testing.Documents
     /// A simple document that stores metadata in a <c>Dictionary</c> without any built-in type conversion.
     /// Also no support for content at this time.
     /// </summary>
-    public class TestDocument : IDocument
+    public class TestDocument : IDocument, ITypeConversions
     {
         private readonly TestMetadata _metadata = new TestMetadata();
 
@@ -58,13 +58,17 @@ namespace Wyam.Testing.Documents
         }
 
         /// <inhertdoc />
+        public TestDocument(Stream stream, IEnumerable<KeyValuePair<string, object>> metadata)
+            : this(metadata)
+        {
+            Stream = stream;
+        }
+
+        /// <inhertdoc />
         public IMetadata WithoutSettings => this;
 
         /// <inhertdoc />
         public bool ContainsKey(string key) => _metadata.ContainsKey(key);
-
-        /// <inhertdoc />
-        public bool TryGetValue(string key, out object value) => _metadata.TryGetValue(key, out value);
 
         /// <inhertdoc />
         public IMetadata<T> MetadataAs<T>() => _metadata.MetadataAs<T>();
@@ -80,6 +84,12 @@ namespace Wyam.Testing.Documents
 
         /// <inhertdoc />
         public T Get<T>(string key, T defaultValue) => _metadata.Get<T>(key, defaultValue);
+
+        /// <inhertdoc />
+        public bool TryGetValue<T>(string key, out T value) => _metadata.TryGetValue<T>(key, out value);
+
+        /// <inhertdoc />
+        public bool TryGetValue(string key, out object value) => _metadata.TryGetValue(key, out value);
 
         public IMetadata GetMetadata(params string[] keys) => _metadata.GetMetadata(keys);
 
@@ -133,11 +143,14 @@ namespace Wyam.Testing.Documents
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            return ((IEnumerable) _metadata).GetEnumerator();
+            return ((IEnumerable)_metadata).GetEnumerator();
         }
-
 
         /// <inhertdoc />
         public int Count => _metadata.Count;
+
+        public Dictionary<(Type Value, Type Result), Func<object, object>> TypeConversions => _metadata.TypeConversions;
+
+        public void AddTypeConversion<T, TResult>(Func<T, TResult> typeConversion) => _metadata.AddTypeConversion(typeConversion);
     }
 }
