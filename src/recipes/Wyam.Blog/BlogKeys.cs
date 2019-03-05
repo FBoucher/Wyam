@@ -229,7 +229,7 @@ namespace Wyam.Blog
         public const string Excerpt = nameof(Excerpt);
 
         /// <summary>
-        /// Set to <c>true</c> to hide a particular page from the top-level navigation bar.
+        /// Set to <c>false</c> to hide a particular page from the top-level navigation bar.
         /// </summary>
         /// <type><see cref="bool"/></type>
         public const string ShowInNavbar = nameof(ShowInNavbar);
@@ -255,5 +255,11 @@ namespace Wyam.Blog
         /// </summary>
         /// <type><see cref="string"/> or <c>IEnumerable&lt;string&gt;</c></type>
         public const string IgnoreFolders = nameof(IgnoreFolders);
+
+        /// <summary>
+        /// Set to <c>true</c> to prepend a configured <c>LinkRoot</c> to all root-relative Markdown links.
+        /// </summary>
+        /// <type><see cref="bool"/></type>
+        public const string MarkdownPrependLinkRoot = nameof(MarkdownPrependLinkRoot);
     }
 }

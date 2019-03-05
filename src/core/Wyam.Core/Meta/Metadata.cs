@@ -10,21 +10,16 @@ namespace Wyam.Core.Meta
 {
     internal abstract class Metadata : IMetadata
     {
-        protected internal Stack<IDictionary<string, object>> Stack { get; }
+        protected internal Stack<IReadOnlyDictionary<string, object>> Stack { get; }
 
         protected Metadata()
         {
-            Stack = new Stack<IDictionary<string, object>>();
+            Stack = new Stack<IReadOnlyDictionary<string, object>>();
         }
 
-        protected Metadata(Stack<IDictionary<string, object>> stack)
+        protected Metadata(Stack<IReadOnlyDictionary<string, object>> stack)
         {
-            if (stack == null)
-            {
-                throw new ArgumentNullException(nameof(stack));
-            }
-
-            Stack = stack;
+            Stack = stack ?? throw new ArgumentNullException(nameof(stack));
         }
 
         public IMetadata<T> MetadataAs<T>() => new MetadataAs<T>(this);
@@ -35,30 +30,11 @@ namespace Wyam.Core.Meta
             {
                 throw new ArgumentNullException(nameof(key));
             }
-            return Stack.FirstOrDefault(x => x.ContainsKey(key)) != null;
+            return Stack.Any(x => x.ContainsKey(key));
         }
 
-        public bool TryGetValue(string key, out object value)
-        {
-            if (key == null)
-            {
-                throw new ArgumentNullException(nameof(key));
-            }
-            value = null;
-            IDictionary<string, object> meta = Stack.FirstOrDefault(x => x.ContainsKey(key));
-            if (meta == null)
-            {
-                return false;
-            }
-            value = GetValue(meta[key]);
-            return true;
-        }
-
-        public object Get(string key, object defaultValue = null)
-        {
-            object value;
-            return TryGetValue(key, out value) ? value : defaultValue;
-        }
+        public object Get(string key, object defaultValue = null) =>
+            TryGetValue(key, out object value) ? value : defaultValue;
 
         public object GetRaw(string key)
         {
@@ -66,7 +42,7 @@ namespace Wyam.Core.Meta
             {
                 throw new ArgumentNullException(nameof(key));
             }
-            IDictionary<string, object> meta = Stack.FirstOrDefault(x => x.ContainsKey(key));
+            IReadOnlyDictionary<string, object> meta = Stack.FirstOrDefault(x => x.ContainsKey(key));
             if (meta == null)
             {
                 throw new KeyNotFoundException(nameof(key));
@@ -78,6 +54,24 @@ namespace Wyam.Core.Meta
 
         public T Get<T>(string key, T defaultValue) => MetadataAs<T>().Get(key, defaultValue);
 
+        public bool TryGetValue<T>(string key, out T value)
+        {
+            if (key == null)
+            {
+                throw new ArgumentNullException(nameof(key));
+            }
+            value = default(T);
+            IReadOnlyDictionary<string, object> meta = Stack.FirstOrDefault(x => x.ContainsKey(key));
+            if (meta == null)
+            {
+                return false;
+            }
+            object rawValue = GetValue(meta[key]);
+            return TypeHelper.TryConvert(rawValue, out value);
+        }
+
+        public bool TryGetValue(string key, out object value) => TryGetValue<object>(key, out value);
+
         public object this[string key]
         {
             get
@@ -86,8 +80,7 @@ namespace Wyam.Core.Meta
                 {
                     throw new ArgumentNullException(nameof(key));
                 }
-                object value;
-                if (!TryGetValue(key, out value))
+                if (!TryGetValue(key, out object value))
                 {
                     throw new KeyNotFoundException("The key " + key + " was not found in metadata, use Get() to provide a default value.");
                 }
@@ -111,19 +104,15 @@ namespace Wyam.Core.Meta
         /// <summary>
         /// This resolves the metadata value by recursively expanding IMetadataValue.
         /// </summary>
-        private object GetValue(object originalValue)
-        {
-            IMetadataValue metadataValue = originalValue as IMetadataValue;
-            return metadataValue != null ? GetValue(metadataValue.Get(this)) : originalValue;
-        }
+        private object GetValue(object originalValue) =>
+            originalValue is IMetadataValue metadataValue ? GetValue(metadataValue.Get(this)) : originalValue;
 
         /// <summary>
         /// This resolves the metadata value by expanding IMetadataValue.
         /// </summary>
-        private KeyValuePair<string, object> GetItem(KeyValuePair<string, object> item)
-        {
-            IMetadataValue metadataValue = item.Value as IMetadataValue;
-            return metadataValue != null ? new KeyValuePair<string, object>(item.Key, GetValue(metadataValue.Get(this))) : item;
-        }
+        private KeyValuePair<string, object> GetItem(KeyValuePair<string, object> item) =>
+            item.Value is IMetadataValue metadataValue
+                ? new KeyValuePair<string, object>(item.Key, GetValue(metadataValue.Get(this)))
+                : item;
     }
 }

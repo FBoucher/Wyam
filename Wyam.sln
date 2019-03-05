@@ -36,10 +36,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wyam.Html.Tests", "tests\ex
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wyam.Common.Tests", "tests\core\Wyam.Common.Tests\Wyam.Common.Tests.csproj", "{3E93B31C-5670-413A-947A-77A46456CD13}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wyam.TextGeneration", "src\extensions\Wyam.TextGeneration\Wyam.TextGeneration.csproj", "{0D7F4902-C048-46AA-BDD1-B87B657003FF}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wyam.TextGeneration.Tests", "tests\extensions\Wyam.TextGeneration.Tests\Wyam.TextGeneration.Tests.csproj", "{704624AF-5081-4EC7-BD47-AB93292D7B4E}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wyam.CodeAnalysis", "src\extensions\Wyam.CodeAnalysis\Wyam.CodeAnalysis.csproj", "{F4C0C025-5E08-4ED2-A089-67C41702AE7B}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wyam.CodeAnalysis.Tests", "tests\extensions\Wyam.CodeAnalysis.Tests\Wyam.CodeAnalysis.Tests.csproj", "{9BF3B222-0B52-46E8-B3E2-5A5EB62EFFF4}"
@@ -67,6 +63,9 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wyam.AmazonWebServices", "src\extensions\Wyam.AmazonWebServices\Wyam.AmazonWebServices.csproj", "{327A23F7-AE78-48B3-97B0-7180492CF08C}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{596452BD-AE34-4989-A36F-88FF72B2DFD8}"
+	ProjectSection(SolutionItems) = preProject
+		tests\Directory.Build.props = tests\Directory.Build.props
+	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wyam.Minification", "src\extensions\Wyam.Minification\Wyam.Minification.csproj", "{AD223A29-5736-4914-9D24-66D8329E663E}"
 EndProject
@@ -87,6 +86,9 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wyam.Feeds", "src\extensions\Wyam.Feeds\Wyam.Feeds.csproj", "{BD7F456D-2576-43CC-B554-C03EB02BE8B7}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{DA9CFA76-E730-4707-A312-01470C89FA6E}"
+	ProjectSection(SolutionItems) = preProject
+		src\Directory.Build.props = src\Directory.Build.props
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "clients", "clients", "{43F26311-B67F-4F8D-BBAC-9C6F4B9F5C52}"
 EndProject
@@ -121,13 +123,22 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "misc", "misc", "{9B01F618-6AB3-4DCD-A044-4CA58EEF6419}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
+		.gitignore = .gitignore
+		azure-pipelines.yml = azure-pipelines.yml
+		build.cake = build.cake
+		build.ps1 = build.ps1
+		BUILDING.md = BUILDING.md
+		CONTRIBUTING.md = CONTRIBUTING.md
+		daveaglick.ruleset = daveaglick.ruleset
+		Directory.Build.props = Directory.Build.props
+		LICENSE = LICENSE
+		README.md = README.md
+		RELEASE = RELEASE
+		ReleaseNotes.md = ReleaseNotes.md
 		stylecop.json = stylecop.json
-		test.ruleset = test.ruleset
 		wyam.ruleset = wyam.ruleset
 		Wyam.sln.DotSettings = Wyam.sln.DotSettings
 	EndProjectSection
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wyam.BookSite", "src\recipes\Wyam.BookSite\Wyam.BookSite.csproj", "{8A4FBE8F-B009-4EA7-B941-9B6406B4E55D}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wyam.Web", "src\recipes\Wyam.Web\Wyam.Web.csproj", "{A4038D8B-40ED-4802-AA95-1E6171EF6036}"
 EndProject
@@ -136,6 +147,10 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wyam.YouTube", "src\extensions\Wyam.YouTube\Wyam.YouTube.csproj", "{CBD166F0-F93E-48E7-83E0-99DB2CCED36A}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wyam.YouTube.Tests", "tests\extensions\Wyam.YouTube.Tests\Wyam.YouTube.Tests.csproj", "{9C1DA009-EADE-451A-9EB8-4075B079B0F1}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wyam.Images.Tests", "tests\extensions\Wyam.Images.Tests\Wyam.Images.Tests.csproj", "{0D8A9B33-A64E-42AF-8BD5-62C33D16AED3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wyam.Feeds.Tests", "tests\extensions\Wyam.Feeds.Tests\Wyam.Feeds.Tests.csproj", "{53711748-0274-4A01-B2DC-010DB2FD760F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -203,14 +218,6 @@ Global
 		{3E93B31C-5670-413A-947A-77A46456CD13}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3E93B31C-5670-413A-947A-77A46456CD13}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3E93B31C-5670-413A-947A-77A46456CD13}.Release|Any CPU.Build.0 = Release|Any CPU
-		{0D7F4902-C048-46AA-BDD1-B87B657003FF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{0D7F4902-C048-46AA-BDD1-B87B657003FF}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{0D7F4902-C048-46AA-BDD1-B87B657003FF}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{0D7F4902-C048-46AA-BDD1-B87B657003FF}.Release|Any CPU.Build.0 = Release|Any CPU
-		{704624AF-5081-4EC7-BD47-AB93292D7B4E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{704624AF-5081-4EC7-BD47-AB93292D7B4E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{704624AF-5081-4EC7-BD47-AB93292D7B4E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{704624AF-5081-4EC7-BD47-AB93292D7B4E}.Release|Any CPU.Build.0 = Release|Any CPU
 		{F4C0C025-5E08-4ED2-A089-67C41702AE7B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{F4C0C025-5E08-4ED2-A089-67C41702AE7B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F4C0C025-5E08-4ED2-A089-67C41702AE7B}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -331,10 +338,6 @@ Global
 		{A6B7B1A6-7BE5-4E98-9286-D03A0F936E98}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A6B7B1A6-7BE5-4E98-9286-D03A0F936E98}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A6B7B1A6-7BE5-4E98-9286-D03A0F936E98}.Release|Any CPU.Build.0 = Release|Any CPU
-		{8A4FBE8F-B009-4EA7-B941-9B6406B4E55D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{8A4FBE8F-B009-4EA7-B941-9B6406B4E55D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{8A4FBE8F-B009-4EA7-B941-9B6406B4E55D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{8A4FBE8F-B009-4EA7-B941-9B6406B4E55D}.Release|Any CPU.Build.0 = Release|Any CPU
 		{A4038D8B-40ED-4802-AA95-1E6171EF6036}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{A4038D8B-40ED-4802-AA95-1E6171EF6036}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A4038D8B-40ED-4802-AA95-1E6171EF6036}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -347,6 +350,14 @@ Global
 		{9C1DA009-EADE-451A-9EB8-4075B079B0F1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9C1DA009-EADE-451A-9EB8-4075B079B0F1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9C1DA009-EADE-451A-9EB8-4075B079B0F1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0D8A9B33-A64E-42AF-8BD5-62C33D16AED3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0D8A9B33-A64E-42AF-8BD5-62C33D16AED3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0D8A9B33-A64E-42AF-8BD5-62C33D16AED3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0D8A9B33-A64E-42AF-8BD5-62C33D16AED3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{53711748-0274-4A01-B2DC-010DB2FD760F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{53711748-0274-4A01-B2DC-010DB2FD760F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{53711748-0274-4A01-B2DC-010DB2FD760F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{53711748-0274-4A01-B2DC-010DB2FD760F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -367,8 +378,6 @@ Global
 		{68085EE3-BB21-4E52-9A86-DD1820A0D010} = {5A431149-2B88-40C3-9717-CA6CCF214317}
 		{822FDD27-DAA4-4816-A0EA-DC079430445C} = {2E5842F3-4797-4BB5-9A55-F3A005B434F8}
 		{3E93B31C-5670-413A-947A-77A46456CD13} = {12931CA5-E734-4CD9-883D-27D897512183}
-		{0D7F4902-C048-46AA-BDD1-B87B657003FF} = {5A431149-2B88-40C3-9717-CA6CCF214317}
-		{704624AF-5081-4EC7-BD47-AB93292D7B4E} = {2E5842F3-4797-4BB5-9A55-F3A005B434F8}
 		{F4C0C025-5E08-4ED2-A089-67C41702AE7B} = {5A431149-2B88-40C3-9717-CA6CCF214317}
 		{9BF3B222-0B52-46E8-B3E2-5A5EB62EFFF4} = {2E5842F3-4797-4BB5-9A55-F3A005B434F8}
 		{F17862D9-8B53-44C0-9102-B1B84BE72E76} = {5A431149-2B88-40C3-9717-CA6CCF214317}
@@ -406,11 +415,12 @@ Global
 		{9C59DA3D-6A41-4DC4-A4BB-0927C6978367} = {12931CA5-E734-4CD9-883D-27D897512183}
 		{90A0AB19-0146-4931-BEFA-D895B192E050} = {5A431149-2B88-40C3-9717-CA6CCF214317}
 		{A6B7B1A6-7BE5-4E98-9286-D03A0F936E98} = {2E5842F3-4797-4BB5-9A55-F3A005B434F8}
-		{8A4FBE8F-B009-4EA7-B941-9B6406B4E55D} = {AC85A818-00B5-468B-A4F9-A8C90E493363}
 		{A4038D8B-40ED-4802-AA95-1E6171EF6036} = {AC85A818-00B5-468B-A4F9-A8C90E493363}
 		{AC85A818-00B5-468B-A4F9-A8C90E493363} = {DA9CFA76-E730-4707-A312-01470C89FA6E}
 		{CBD166F0-F93E-48E7-83E0-99DB2CCED36A} = {5A431149-2B88-40C3-9717-CA6CCF214317}
 		{9C1DA009-EADE-451A-9EB8-4075B079B0F1} = {2E5842F3-4797-4BB5-9A55-F3A005B434F8}
+		{0D8A9B33-A64E-42AF-8BD5-62C33D16AED3} = {2E5842F3-4797-4BB5-9A55-F3A005B434F8}
+		{53711748-0274-4A01-B2DC-010DB2FD760F} = {2E5842F3-4797-4BB5-9A55-F3A005B434F8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {B0CD133C-B843-4178-8976-B04AE6B2021A}

@@ -20,9 +20,16 @@ namespace Wyam.Html
     /// Queries HTML content of the input documents and creates new documents with content and metadata from the results.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Once you provide a DOM query selector, the module creates new output documents
     /// for each query result and allows you to set the new document content and/or set new
     /// metadata based on the query result.
+    /// </para>
+    /// <para>
+    /// Note that because this module parses the document
+    /// content as standards-compliant HTML and outputs the formatted post-parsed DOM, you should
+    /// only place this module after all other template processing has been performed.
+    /// </para>
     /// </remarks>
     /// <metadata cref="HtmlKeys.OuterHtml" usage="Output"/>
     /// <metadata cref="HtmlKeys.InnerHtml" usage="Output"/>
@@ -186,7 +193,7 @@ namespace Wyam.Html
                 IHtmlDocument htmlDocument = input.ParseHtml(parser);
                 if (htmlDocument == null)
                 {
-                    return new [] { input };
+                    return new[] { input };
                 }
 
                 // Evaluate the query selector
@@ -195,7 +202,7 @@ namespace Wyam.Html
                     if (!string.IsNullOrWhiteSpace(_querySelector))
                     {
                         IElement[] elements = _first
-                            ? new[] {htmlDocument.QuerySelector(_querySelector)}
+                            ? new[] { htmlDocument.QuerySelector(_querySelector) }
                             : htmlDocument.QuerySelectorAll(_querySelector).ToArray();
                         if (elements.Length > 0 && elements[0] != null)
                         {
@@ -217,11 +224,11 @@ namespace Wyam.Html
                                     {
                                         if (_outerHtmlContent.Value)
                                         {
-                                            element.ToHtml(writer, HtmlMarkupFormatter.Instance);
+                                            element.ToHtml(writer, ProcessingInstructionFormatter.Instance);
                                         }
                                         else
                                         {
-                                            element.ChildNodes.ToHtml(writer, HtmlMarkupFormatter.Instance);
+                                            element.ChildNodes.ToHtml(writer, ProcessingInstructionFormatter.Instance);
                                         }
                                         writer.Flush();
                                         documents.Add(context.GetDocument(input, contentStream, metadata.Count == 0 ? null : metadata));

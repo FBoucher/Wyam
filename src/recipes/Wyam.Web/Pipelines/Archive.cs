@@ -5,6 +5,7 @@ using Wyam.Common.Execution;
 using Wyam.Common.IO;
 using Wyam.Common.Meta;
 using Wyam.Common.Modules;
+using Wyam.Core.Modules.Contents;
 using Wyam.Core.Modules.Control;
 using Wyam.Core.Modules.Extensibility;
 using Wyam.Core.Modules.IO;
@@ -63,7 +64,7 @@ namespace Wyam.Web.Pipelines
                     {
                         new Execute(ctx =>
                             new GroupByMany(settings.Group, new Documents().FromPipelines(settings.Pipelines))
-                                .WithComparer(settings.CaseInsensitiveGroupComparer != null && settings.CaseInsensitiveGroupComparer.Invoke<bool>(ctx) ? StringComparer.OrdinalIgnoreCase : null)
+                                .WithComparer(settings.CaseInsensitiveGroupComparer?.Invoke<bool>(ctx) == true ? StringComparer.OrdinalIgnoreCase : null)
                                 .WithEmptyOutputIfNoGroups()),
                         new Where((doc, ctx) => !string.IsNullOrEmpty(doc.String(Keys.GroupKey))),
                         new ForEach((IModule)GetIndexPageModules(
@@ -78,10 +79,12 @@ namespace Wyam.Web.Pipelines
                 Render,
                 new If(
                     ctx => settings.WriteIfEmpty || settings.Pipelines.Any(x => ctx.Documents[x].Any()),
+                    new Shortcodes(true),
                     new Razor.Razor()
                         .IgnorePrefix(null)
-                        .WithLayout(settings.Layout))
-                        .WithoutUnmatchedDocuments()
+                        .WithLayout(settings.Layout),
+                    new Shortcodes(false))
+                    .WithoutUnmatchedDocuments()
             },
             {
                 WriteFiles,

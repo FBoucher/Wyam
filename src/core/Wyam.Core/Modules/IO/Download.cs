@@ -117,7 +117,7 @@ namespace Wyam.Core.Modules.IO
             List<DownloadResponse> responses = _cachedResponses;
             if (responses == null)
             {
-                List<Task<DownloadResponse>> tasks = _requests.Select(GetResponse).ToList();
+                List<Task<DownloadResponse>> tasks = _requests.Select(x => GetResponse(x, context)).ToList();
                 Task.WhenAll(tasks).Wait();
                 responses = tasks
                     .Where(x => !x.IsFaulted)
@@ -132,15 +132,14 @@ namespace Wyam.Core.Modules.IO
             return responses.AsParallel().Select(r =>
             {
                 string uri = r.Uri.ToString();
-                IDocument doc = context.GetDocument(
-                    new FilePath((Uri) null, uri, PathKind.Absolute),
+                return context.GetDocument(
+                    new FilePath((Uri)null, uri, PathKind.Absolute),
                     r.Stream,
                     new MetadataItems
                     {
                         { Keys.SourceUri, uri },
                         { Keys.SourceHeaders, r.Headers }
                     });
-                return doc;
             });
         }
 
@@ -153,38 +152,42 @@ namespace Wyam.Core.Modules.IO
                 { HttpMethod.Put, (client, uri, content) => client.PutAsync(uri, content) }
             };
 
-        private async Task<DownloadResponse> GetResponse(DownloadRequest request)
+        private async Task<DownloadResponse> GetResponse(DownloadRequest request, IExecutionContext context)
         {
-            HttpClientHandler clientHandler = new HttpClientHandler();
-            if (request.Credentials != null)
+            // Get the HTTP client
+            using (HttpClientHandler clientHandler = new HttpClientHandler())
             {
-                clientHandler.Credentials = request.Credentials;
-            }
-            using (HttpClient client = new HttpClient(clientHandler))
-            {
-                // Apply request headers
-                request.Headers?.ApplyTo(client.DefaultRequestHeaders);
-
-                // Apply the query string
-                Uri uri = ApplyQueryString(request.Uri, request.QueryString);
-
-                // Now that we are set and ready, go and do the download call
-                Func<HttpClient, Uri, HttpContent, Task<HttpResponseMessage>> requestFunc;
-                if (!MethodMapping.TryGetValue(request.Method ?? HttpMethod.Get, out requestFunc))
+                if (request.Credentials != null)
                 {
-                    Trace.Error($"Invalid download method for {request.Uri}: {request.Method.Method}");
-                    return null;
+                    clientHandler.Credentials = request.Credentials;
                 }
-                using (HttpResponseMessage response = await requestFunc(client, uri, request.Content))
+                using (HttpClient client = context.CreateHttpClient(clientHandler))
                 {
-                    using (HttpContent content = response.Content)
+                    // Apply request headers
+                    request.Headers?.ApplyTo(client.DefaultRequestHeaders);
+
+                    // Apply the query string
+                    Uri uri = ApplyQueryString(request.Uri, request.QueryString);
+
+                    // Now that we are set and ready, go and do the download call
+                    if (!MethodMapping.TryGetValue(
+                        request.Method ?? HttpMethod.Get,
+                        out Func<HttpClient, Uri, HttpContent, Task<HttpResponseMessage>> requestFunc))
                     {
-                        Stream result = await content.ReadAsStreamAsync();
-                        MemoryStream mem = new MemoryStream();
-                        result.CopyTo(mem);
-                        Dictionary<string, string> headers = content.Headers.ToDictionary(
-                            x => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(x.Key), x => string.Join(",", x.Value));
-                        return new DownloadResponse(request.Uri, mem, headers);
+                        Trace.Error($"Invalid download method for {request.Uri}: {request.Method.Method}");
+                        return null;
+                    }
+                    using (HttpResponseMessage response = await requestFunc(client, uri, request.Content).ConfigureAwait(false))
+                    {
+                        using (HttpContent content = response.Content)
+                        {
+                            Stream result = await content.ReadAsStreamAsync().ConfigureAwait(false);
+                            MemoryStream mem = new MemoryStream();
+                            result.CopyTo(mem);
+                            Dictionary<string, string> headers = content.Headers.ToDictionary(
+                                x => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(x.Key), x => string.Join(",", x.Value));
+                            return new DownloadResponse(request.Uri, mem, headers);
+                        }
                     }
                 }
             }

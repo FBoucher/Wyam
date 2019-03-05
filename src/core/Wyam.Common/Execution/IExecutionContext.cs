@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net.Http;
 using System.Reflection;
 using Wyam.Common.Caching;
 using Wyam.Common.Configuration;
@@ -9,6 +10,7 @@ using Wyam.Common.IO;
 using Wyam.Common.JavaScript;
 using Wyam.Common.Meta;
 using Wyam.Common.Modules;
+using Wyam.Common.Shortcodes;
 using Wyam.Common.Tracing;
 
 namespace Wyam.Common.Execution
@@ -62,6 +64,11 @@ namespace Wyam.Common.Execution
         IReadOnlySettings Settings { get; }
 
         /// <summary>
+        /// Gets the available shortcodes.
+        /// </summary>
+        IReadOnlyShortcodeCollection Shortcodes { get; }
+
+        /// <summary>
         /// Gets the collection of all previously processed documents.
         /// </summary>
         IDocumentCollection Documents { get; }
@@ -86,6 +93,19 @@ namespace Wyam.Common.Execution
         Stream GetContentStream(string content = null);
 
         /// <summary>
+        /// Creates a <see cref="HttpClient"/> instance that should be used for all HTTP communication.
+        /// </summary>
+        /// <returns>A new <see cref="HttpClient"/> instance.</returns>
+        HttpClient CreateHttpClient();
+
+        /// <summary>
+        /// Creates a new <see cref="HttpClient"/> instance that uses a custom message handler.
+        /// </summary>
+        /// <param name="handler">The message handler to use for this client.</param>
+        /// <returns>A new <see cref="HttpClient"/> instance.</returns>
+        HttpClient CreateHttpClient(HttpMessageHandler handler);
+
+        /// <summary>
         /// Gets a new document with default initial metadata.
         /// </summary>
         /// <returns>The new document.</returns>
@@ -103,6 +123,14 @@ namespace Wyam.Common.Execution
         /// <param name="disposeStream">If set to <c>true</c> the provided <see cref="Stream"/> is disposed when the document is.</param>
         /// <returns>The new document.</returns>
         IDocument GetDocument(FilePath source, Stream stream, IEnumerable<KeyValuePair<string, object>> items = null, bool disposeStream = true);
+
+        /// <summary>
+        /// Gets a new document with the specified source and metadata (in addition to the default initial metadata).
+        /// </summary>
+        /// <param name="source">The source.</param>
+        /// <param name="items">The metadata items.</param>
+        /// <returns>The new document.</returns>
+        IDocument GetDocument(FilePath source, IEnumerable<KeyValuePair<string, object>> items = null);
 
         /// <summary>
         /// Gets a new document with the specified content stream and metadata (in addition to the default initial metadata).
@@ -205,7 +233,7 @@ namespace Wyam.Common.Execution
         IReadOnlyList<IDocument> Execute(IEnumerable<IModule> modules, IEnumerable<MetadataItem> metadata);
 
         /// <summary>
-        /// Gets a new <see cref="IJsEnginePool"/>. The returned engine pool should be disposed
+        /// Gets a new <see cref="IJavaScriptEnginePool"/>. The returned engine pool should be disposed
         /// when no longer needed.
         /// </summary>
         /// <param name="initializer">
@@ -220,11 +248,34 @@ namespace Wyam.Common.Execution
         /// If an engine can not be acquired in this timeframe, an exception will be thrown.
         /// </param>
         /// <returns>A new JavaScript engine pool.</returns>
-        IJsEnginePool GetJsEnginePool(
-            Action<IJsEngine> initializer = null,
+        IJavaScriptEnginePool GetJavaScriptEnginePool(
+            Action<IJavaScriptEngine> initializer = null,
             int startEngines = 10,
             int maxEngines = 25,
             int maxUsagesPerEngine = 100,
             TimeSpan? engineTimeout = null);
+
+        /// <summary>
+        /// A factory method for use from inside an <see cref="IShortcode"/> to create an <see cref="IShortcodeResult"/>.
+        /// </summary>
+        /// <param name="content">
+        /// The content of the shortcode.
+        /// If you don't want the shortcode to add new content, you can use <c>null</c> for the content.
+        /// </param>
+        /// <param name="metadata">New metadata to be added to the document as a result of executing the shortcode.</param>
+        /// <returns>A shortcode result.</returns>
+        IShortcodeResult GetShortcodeResult(string content, IEnumerable<KeyValuePair<string, object>> metadata = null);
+
+        /// <summary>
+        /// A factory method for use from inside an <see cref="IShortcode"/> to create an <see cref="IShortcodeResult"/>.
+        /// </summary>
+        /// <param name="content">
+        /// The content of the shortcode. The passed in stream will be disposed when the shortcode has been rendered.
+        /// Use <see cref="GetContentStream(string)"/> if you need to create a content stream from a string.
+        /// If you don't want the shortcode to add new content, you can use <c>null</c> for the content stream.
+        /// </param>
+        /// <param name="metadata">New metadata to be added to the document as a result of executing the shortcode.</param>
+        /// <returns>A shortcode result.</returns>
+        IShortcodeResult GetShortcodeResult(Stream content, IEnumerable<KeyValuePair<string, object>> metadata = null);
     }
 }

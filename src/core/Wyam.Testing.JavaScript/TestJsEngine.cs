@@ -4,28 +4,28 @@ using System.Reflection;
 using System.Text;
 using JavaScriptEngineSwitcher.Core;
 using JavaScriptEngineSwitcher.Jint;
-using IJsEngine = Wyam.Common.JavaScript.IJsEngine;
+using IJavaScriptEngine = Wyam.Common.JavaScript.IJavaScriptEngine;
 
 namespace Wyam.Testing.JavaScript
 {
-    public class TestJsEngine : IJsEngine
+    public class TestJsEngine : IJavaScriptEngine
     {
         private readonly JavaScriptEngineSwitcher.Core.IJsEngine _engine;
 
         static TestJsEngine()
         {
-            JsEngineSwitcher.Instance.EngineFactories.Add(new JintJsEngineFactory());
-            JsEngineSwitcher.Instance.DefaultEngineName = JintJsEngine.EngineName;
+            JsEngineSwitcher.Current.EngineFactories.Add(new JintJsEngineFactory());
+            JsEngineSwitcher.Current.DefaultEngineName = JintJsEngine.EngineName;
         }
 
         public TestJsEngine()
         {
-            _engine = JsEngineSwitcher.Instance.CreateDefaultEngine();
+            _engine = JsEngineSwitcher.Current.CreateDefaultEngine();
         }
 
         public TestJsEngine(string engineName)
         {
-            _engine = JsEngineSwitcher.Instance.CreateEngine(engineName);
+            _engine = JsEngineSwitcher.Current.CreateEngine(engineName);
         }
 
         public void Dispose()

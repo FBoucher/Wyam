@@ -4,6 +4,7 @@ using System.CommandLine;
 using System.Linq;
 using Wyam.Common.Tracing;
 using Wyam.Configuration.Preprocessing;
+using Wyam.Core.Util;
 
 namespace Wyam.Configuration.Directives
 {
@@ -69,7 +70,8 @@ namespace Wyam.Configuration.Directives
 
         public string GetHelpText()
         {
-            return string.Join(Environment.NewLine,
+            return string.Join(
+                Environment.NewLine,
                 Process(null, string.Empty, true)
                     .Split(new[] { Environment.NewLine }, StringSplitOptions.None)
                     .Skip(1)

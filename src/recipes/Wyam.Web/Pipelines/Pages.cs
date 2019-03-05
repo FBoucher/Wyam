@@ -68,9 +68,11 @@ namespace Wyam.Web.Pipelines
                         new Meta(WebKeys.EditFilePath, (doc, ctx) => doc.FilePath(Keys.RelativeFilePath)),
                         new If(settings.ProcessIncludes, new Include()),
                         new FrontMatter(new Yaml.Yaml()),
+                        new Shortcodes(true),
                         new Execute(ctx => new Markdown.Markdown()
                             .UseConfiguration(settings.MarkdownConfiguration.Invoke<string>(ctx))
-                            .UseExtensions(settings.MarkdownExtensionTypes.Invoke<IEnumerable<Type>>(ctx)))
+                            .UseExtensions(settings.MarkdownExtensionTypes.Invoke<IEnumerable<Type>>(ctx))
+                            .PrependLinkRoot(settings.PrependLinkRoot.Invoke<bool>(ctx)))
                     }
                 },
                 {
@@ -81,7 +83,8 @@ namespace Wyam.Web.Pipelines
                             ctx => GetGlobbingPattern(ctx, settings.PagesPattern, settings.IgnorePaths, "cshtml")),
                         new Meta(WebKeys.EditFilePath, (doc, ctx) => doc.FilePath(Keys.RelativeFilePath)),
                         new If(settings.ProcessIncludes, new Include()),
-                        new FrontMatter(new Yaml.Yaml())
+                        new FrontMatter(new Yaml.Yaml()),
+                        new Shortcodes(true)
                     }.Where((ctx, doc, inputs) => !inputs.Any(x =>
                         string.Equals(
                             x.FilePath(Keys.RelativeFilePath).ChangeExtension(null).FullPath,
